@@ -9,7 +9,7 @@
 8. If it does not run correctly reset/check the parameters of the launch file again
 9. Set the parameters of kp,ki,kd in the motor_controller motor_controller_with_subscriber_topic.cpp according to your motor and controllers
 9. if it runs then perform this command in another terminal $ rosrun motor_controller motor_controller_with_subscriber_topic.cpp
-10. S rostopic pub /position <press tab 2 times> <press tab 2 times> you will get a option to enter position_1:
+10. $ rostopic pub /position <press tab 2 times> <press tab 2 times> you will get a option to enter position_1:
                                                                                                     position_2:
                                                                                                     position_3:
 11.Enter some values to make the motor go to that position in encoder steps.

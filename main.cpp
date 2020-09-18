@@ -20,7 +20,7 @@ ros::NodeHandle n;
 ros::Rate rate(10);
 
 Rover *rover=new Rover(&n);
-//Remote *remote=new Remote(&n);
+Remote *remote=new Remote(&n);
 while(ros::ok()){
 	remote->Execute();
 	rover->ExecuteIK();

@@ -37,15 +37,15 @@ void Remote::Execute(){
         geometry_msgs::Pose2D diff;
         
         if(remoteState.buttons[0]==1){
-            up_down_speed_factor+=10;
-            if(up_down_speed_factor>500)
-                up_down_speed_factor=500;
+            up_down_speed_factor+=1;
+            if(up_down_speed_factor>20)
+                up_down_speed_factor=20;
         }
         
         if(remoteState.buttons[1]==1){
-            up_down_speed_factor-=10;
+            up_down_speed_factor-=1;
             if(up_down_speed_factor<0)
-                up_down_speed_factor=5;
+                up_down_speed_factor=2;
         }
         
         if(remoteState.buttons[2]==1){
@@ -78,9 +78,9 @@ void Remote::Execute(){
         finalState.y=robot_odom_position.y+diff.y;
         finalState.theta=robot_odom_position.theta+diff.theta;
         inv_kinematics_publisher.publish(finalState);
-        ROS_INFO_STREAM(finalState);
+        //ROS_INFO_STREAM(finalState);
         //ROS_INFO_STREAM(remoteState);
-        ros::Duration(0.01).sleep();
+        //ros::Duration(0.01).sleep();
         ros::spinOnce();
 
 }

@@ -24,7 +24,7 @@ class Remote{
         sensor_msgs::Joy initialRemoteState;
 
         int noMovementValue=10;
-        float up_down_speed_factor=100;
+        float up_down_speed_factor=100/10;
         float rotation_speed_factor=0.25;
         bool calibrationDone=false;
 

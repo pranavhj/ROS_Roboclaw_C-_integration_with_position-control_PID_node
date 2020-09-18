@@ -32,7 +32,7 @@ class Rover{
 		roboclaw::RoboclawEncoderSteps pose;
 		roboclaw::RoboclawEncoderSteps pose_1;
 		motor_controller::position position;
-		float full_speed=8500;
+		float full_speed=5000;
 		geometry_msgs::Pose2D FKPose;
 		ros::NodeHandle n;
 		geometry_msgs::Pose2D IKpose;

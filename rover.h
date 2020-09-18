@@ -27,15 +27,18 @@ class Rover{
 		std_msgs::String DoneString;
 		ros::Publisher ForwardKinematicsPositionPublisher;
 		ros::Subscriber inv_kinematics_subscriber;
+		ros::Publisher inv_kinematics_publisher;
 
 		roboclaw::RoboclawEncoderSteps pose;
 		roboclaw::RoboclawEncoderSteps pose_1;
 		motor_controller::position position;
-		float full_speed=1500;
+		float full_speed=8500;
 		geometry_msgs::Pose2D FKPose;
 		ros::NodeHandle n;
 		geometry_msgs::Pose2D IKpose;
 		float targets[3];
+		float interpolation_speed=200;
+		float prev_speed,prev_speed_1=0,prev_speed_2=0;
 		
 
 

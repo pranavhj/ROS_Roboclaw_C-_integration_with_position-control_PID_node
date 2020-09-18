@@ -18,7 +18,7 @@ Remote::Remote(ros::NodeHandle *n){
 
 void Remote::Execute(){
     if(calibrationDone==false){
-            std::cout<<"Calibration not complete"<<std::endl;
+            //std::cout<<"Calibration not complete"<<std::endl;
             CalibrateRemote();
             ros::spinOnce();
             return;
@@ -77,13 +77,21 @@ void Remote::Execute(){
         finalState.x=robot_odom_position.x+diff.x;
         finalState.y=robot_odom_position.y+diff.y;
         finalState.theta=robot_odom_position.theta+diff.theta;
-        inv_kinematics_publisher.publish(finalState);
+        //inv_kinematics_publisher.publish(finalState);
         //ROS_INFO_STREAM(finalState);
         //ROS_INFO_STREAM(remoteState);
         //ros::Duration(0.01).sleep();
+        remoteVals=finalState;
         ros::spinOnce();
 
 }
+
+
+
+geometry_msgs::Pose2D Remote::GetRemoteState(){
+    return remoteVals;
+}
+
 
 
 /*int main(int argc, char **argv)

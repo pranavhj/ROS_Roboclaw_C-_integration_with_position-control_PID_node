@@ -20,6 +20,7 @@ class Remote{
         ros::Subscriber robot_odom_position_subscriber;
         ros::Subscriber remoteStateSubscriber;
         geometry_msgs::Pose2D robot_odom_position;
+        geometry_msgs::Pose2D remoteVals;
         sensor_msgs::Joy remoteState;
         sensor_msgs::Joy initialRemoteState;
 
@@ -42,4 +43,5 @@ class Remote{
         void RemoteStateCallback(const sensor_msgs::Joy::ConstPtr& msg);
         void CalibrateRemote();
         void Execute();
+        geometry_msgs::Pose2D GetRemoteState();
 };

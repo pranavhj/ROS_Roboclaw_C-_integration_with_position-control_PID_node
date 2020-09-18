@@ -18,14 +18,21 @@ Rover::Rover(ros::NodeHandle *n){
 
 
 	ros::spinOnce();
+	ros::Duration(0.5).sleep();
+	
+
 	ForwardKinematics();              //so that it does not move to zero from initial pose
 	IKpose=FKPose;
+	ROS_INFO_STREAM(IKpose);
+	ros::Duration(0.5).sleep();
 	
 }
 
 
 
 void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
+	//std::cout<<"poseCallback";
+	//ROS_INFO_STREAM(*pose_message);
 	pose.index=pose_message->index;
 	pose.mot1_enc_steps=pose_message->mot1_enc_steps;
 	pose.mot2_enc_steps=pose_message->mot2_enc_steps;
@@ -37,12 +44,34 @@ void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_me
 
 
 void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
+	//std::cout<<"pose_1Callback";
+	//ROS_INFO_STREAM(*pose_message);
 	pose_1.index=pose_message->index;
 	pose_1.mot1_enc_steps=pose_message->mot1_enc_steps;
 	pose_1.mot2_enc_steps=pose_message->mot2_enc_steps;
 	//PIDcontroller(position.position_1,position.position_2);
 	
 
+}
+
+void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
+	position.position_1=position_message->position_1;
+	position.position_2=-position_message->position_2;
+	position.position_3=-position_message->position_3;
+	//std::cout<<position.position_1<<"  "<<position.position_2<<"  "<<position.position_3<<std::endl;
+	total_error_1=0;
+	total_error_2=0;
+	total_error_3=0;	
+	//PIDcontroller(position.position_1,position.position_2);
+	
+	
+
+}
+
+
+void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message)
+{   IKpose=*(pose_message);
+	std::cout<<"IKCallback"<<std::endl;
 }
 
 
@@ -92,7 +121,7 @@ void Rover::ExecuteIK(){
 	vel_msg_1.index=0;							//To stop the motor when pid successful
 	vel_msg_1.mot2_vel_sps=0;
 	velocity_publisher_1.publish(vel_msg_1);
-	std::cout<<"zeros"<<std::endl;
+	//std::cout<<"zeros"<<std::endl;
 
 
 	ros::spinOnce();
@@ -100,25 +129,18 @@ void Rover::ExecuteIK(){
 //cout<<pose.mot1_enc_steps<<endl;
 }
 
-void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
-	position.position_1=position_message->position_1;
-	position.position_2=-position_message->position_2;
-	position.position_3=-position_message->position_3;
-	//std::cout<<position.position_1<<"  "<<position.position_2<<"  "<<position.position_3<<std::endl;
-	total_error_1=0;
-	total_error_2=0;
-	total_error_3=0;	
-	//PIDcontroller(position.position_1,position.position_2);
-	
-	
+
+
+void Rover::ExecuteCMDVEL(geometry_msgs::Pose2D finalState){
+	float *targets=matrixCalculation(finalState.x,finalState.y,finalState.theta);
+	std::cout<<*targets<<" "<<*(targets+1)<<" "<<*(targets+2)<<std::endl;
+
+
+
 
 }
 
 
-void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message)
-{   IKpose=*(pose_message);
-	std::cout<<"IKCallback"<<std::endl;
-}
 
 void Rover::PIDcontroller(float goal, float goal1,float goal2)
 {
@@ -324,7 +346,7 @@ void Rover::ForwardKinematics(){
 	temp.y=m*((0*w1)-(250.0/433.0*w2)+(250.0/433.0*w3));
 	temp.theta=m/R/3*(-w1-w2-w3);*/
 
-
+	//std::cout<<w1<<w2<<w3<<std::endl;
 
 	geometry_msgs::Pose2D temp;
 	temp.x=((4503599627370496.0*w1)/25397388702750567.0) - ((1501205072273259.0*w2)/16931592468500378.0) - ((6004778717228287.0*w3)/67726369874001512.0);

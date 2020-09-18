@@ -51,6 +51,7 @@ class Rover{
 	void pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
 	void positionCallback(const motor_controller::position::ConstPtr& position_message);
 	void IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message);
+	void ExecuteCMDVEL(geometry_msgs::Pose2D remoteVals);
 
 
 

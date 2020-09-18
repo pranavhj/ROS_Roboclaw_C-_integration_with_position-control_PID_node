@@ -23,7 +23,7 @@ Rover *rover=new Rover(&n);
 Remote *remote=new Remote(&n);
 while(ros::ok()){
 	remote->Execute();
-	rover->ExecuteIK();
+	rover->ExecuteCMDVEL(remote->GetRemoteState());
 	ros::spinOnce();
 	}
 }

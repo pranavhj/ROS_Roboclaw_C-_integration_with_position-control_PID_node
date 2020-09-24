@@ -69,8 +69,8 @@ void Rover::positionCallback(const motor_controller::position::ConstPtr& positio
 }
 
 
-void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message)
-{   IKpose=*(pose_message);
+void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message){   
+	IKpose=*(pose_message);
 	std::cout<<"IKCallback"<<std::endl;
 }
 
@@ -132,6 +132,9 @@ void Rover::ExecuteIK(){
 float Euler(geometry_msgs::Pose2D finalState,geometry_msgs::Pose2D prevState){
 	return float(sqrt((finalState.x*finalState.x)+(finalState.y*finalState.y))-sqrt((prevState.x*prevState.x)+(prevState.y*prevState.y)));
 	}
+
+
+
 
 void Rover::ExecuteCMDVEL(geometry_msgs::Pose2D finalState){
 	
@@ -228,171 +231,287 @@ void Rover::ExecuteCMDVEL(geometry_msgs::Pose2D finalState){
 
 
 
-void Rover::PIDcontroller(float goal, float goal1,float goal2)
-{
+
+geometry_msgs::Pose2D Rover::ConvertPosition(geometry_msgs::Pose2D remoteState){
+    geometry_msgs::Pose2D temp;
+    float theta=FKPose.theta*3.142/180;
+    float err_x=remoteState.x;
+    float err_y=remoteState.y;
+    temp.x=((cos(theta)*err_x)+(sin(theta)*err_y));
+    temp.y=((-sin(theta)*err_x)+(cos(theta)*err_y));
+    temp.theta=remoteState.theta;
+    return temp;
 
 
-roboclaw::RoboclawMotorVelocity vel_msg_; 
-roboclaw::RoboclawMotorVelocity vel_msg_1;
-vel_msg_.index=0;
-vel_msg_1.index=0;
-goal=position.position_1;
-goal1=position.position_2;
-goal2=position.position_3;
-float e_current=goal-float(pose.mot1_enc_steps);
-float e_current_1=goal1-float(pose_1.mot2_enc_steps);
-float e_current_2=goal2-float(pose.mot2_enc_steps);
+}
 
 
-while((abs((goal)-(float(pose.mot1_enc_steps)))>10.0        ||    abs((goal1)-(float(pose_1.mot2_enc_steps)))>10.0    ||   abs((goal2)-(float(pose.mot2_enc_steps)))>10.0)  &&   ros::ok() )
-	{
-	IK();
-	//std::cout<<"PID"<<std::endl;
+
+
+void Rover::GotoPosition(geometry_msgs::Pose2D remoteState){/////////////remote state is in world frame
+
+
+	
+	auto finalState=ConvertPosition(remoteState);
+	if(abs(Euler(finalState,prevState))>100){
+		//divide speeds
+		auto temp=finalState;
+		float tempxval=100;
+		if(abs(finalState.x-prevState.x)>abs(finalState.y-prevState.y)){
+				
+				if(abs(finalState.x-prevState.x)<100){
+					tempxval=finalState.x-prevState.x;
+					}
+				else{
+					tempxval=(finalState.x-prevState.x)/abs(finalState.x-prevState.x)*tempxval;
+					}
+				finalState.x=prevState.x+tempxval;
+				finalState.y=prevState.y+((temp.y-prevState.y)/abs(temp.x-prevState.x)*abs(tempxval));
+			
+				ros::Duration(0.05).sleep();
+				
+			}
+		else{
+				if(abs(finalState.y-prevState.y)<100){
+					tempxval=finalState.y-prevState.y;
+					}
+				else{
+					tempxval=(finalState.y-prevState.y)/abs(finalState.y-prevState.y)*tempxval;
+					}
+				finalState.y=prevState.y+tempxval;
+				//if(finalState.x==0)
+				finalState.x=prevState.x+((temp.x-prevState.x)/abs(temp.y-prevState.y)*abs(tempxval));
+			
+				ros::Duration(0.05).sleep();
+				}
+
+
+		
+		}
+
+
+
+
+
+
+	prevState=finalState;
+	float *targets=matrixCalculation(finalState.x,finalState.y,finalState.theta);
+	
+	//ROS_INFO_STREAM(finalState);
+	std::cout<<*targets<<" "<<*(targets+1)<<" "<<*(targets+2)<<std::endl;
+	auto speed=*targets;//pos1/=10000;
+	auto speed1=*(targets+1);//pos2/=10000;
+	auto speed2=*(targets+2);//pos3/=10000;
+	
+	ros::spinOnce();
 	ForwardKinematics();
-	if(abs((goal)-(float(pose.mot1_enc_steps)))>500     &&   abs((goal1)-(float(pose_1.mot2_enc_steps)))>500    &&   abs((goal2)-(float(pose.mot2_enc_steps)))>500)
-		{	ros::spinOnce();
+	
+	/*
+	if(abs(speed-prev_speed)>interpolation_speed){
+		speed=prev_speed+((speed-prev_speed)/abs(speed-prev_speed)*interpolation_speed);
+		ros::Duration(0.001).sleep();
+	}
+	if(abs(speed1-prev_speed_1)>interpolation_speed){
+		speed1=prev_speed_1+((speed1-prev_speed_1)/abs(speed1-prev_speed_1)*interpolation_speed);	
+		ros::Duration(0.001).sleep();
+		
+	}
+	if(abs(speed2-prev_speed_2)>interpolation_speed){
+		speed2=prev_speed_2+((speed2-prev_speed_2)/abs(speed2-prev_speed_2)*interpolation_speed);
+		ros::Duration(0.001).sleep();
+	}
+	*/
+	//std::cout<<speed<<" "<<speed1<<" "<<speed2<<std::endl;
+	roboclaw::RoboclawMotorVelocity vel_msg;
+	vel_msg.index=0;
+	vel_msg.mot1_vel_sps=speed;
+	vel_msg.mot2_vel_sps=-speed1;                                               //To stop the motor when pid successful
+	velocity_publisher.publish(vel_msg);
+
+
+	roboclaw::RoboclawMotorVelocity vel_msg_1;
+	vel_msg_1.index=0;							//To stop the motor when pid successful
+	vel_msg_1.mot2_vel_sps=-speed2;
+	velocity_publisher_1.publish(vel_msg_1);
+	
+	
+	prev_speed=speed;
+	prev_speed_1=speed1;
+	prev_speed_2=speed2;
+	
+	
+	ros::spinOnce();
+	ForwardKinematics();
+
+
+}
+
+
+
+
+
+void Rover::PIDcontroller(float goal, float goal1,float goal2){
+	roboclaw::RoboclawMotorVelocity vel_msg_; 
+	roboclaw::RoboclawMotorVelocity vel_msg_1;
+	vel_msg_.index=0;
+	vel_msg_1.index=0;
+	goal=position.position_1;
+	goal1=position.position_2;
+	goal2=position.position_3;
+	float e_current=goal-float(pose.mot1_enc_steps);
+	float e_current_1=goal1-float(pose_1.mot2_enc_steps);
+	float e_current_2=goal2-float(pose.mot2_enc_steps);
+
+
+	while((abs((goal)-(float(pose.mot1_enc_steps)))>10.0        ||    abs((goal1)-(float(pose_1.mot2_enc_steps)))>10.0    ||   abs((goal2)-(float(pose.mot2_enc_steps)))>10.0)  &&   ros::ok() )
+		{
+		IK();
+		//std::cout<<"PID"<<std::endl;
+		ForwardKinematics();
+		if(abs((goal)-(float(pose.mot1_enc_steps)))>500     &&   abs((goal1)-(float(pose_1.mot2_enc_steps)))>500    &&   abs((goal2)-(float(pose.mot2_enc_steps)))>500)
+			{	ros::spinOnce();
+				goal=position.position_1;
+				goal1=position.position_2;
+				goal2=position.position_3;
+				e_current=goal-float(pose.mot1_enc_steps);
+				e_current_1=goal1-float(pose_1.mot2_enc_steps);
+				e_current_2=goal2-float(pose.mot2_enc_steps);
+				//std::cout<<"errors "<<e_current<<" "<<e_current_1<<" "<<e_current_2<<std::endl;
+				float max_speed_=abs(e_current_1)*3.5;
+				if (max_speed_>full_speed)
+					max_speed_=full_speed;
+				float speed=0;
+				float speed1=0;
+				float speed2=0;
+				if (abs(e_current) >= abs(e_current_1)   and  abs(e_current) >= abs(e_current_2)  )
+					{
+					speed=(max_speed_*e_current/abs(e_current));
+					speed1=(max_speed_*abs(e_current_1)/abs(e_current)*e_current_1/abs(e_current_1));
+					speed2=(max_speed_*abs(e_current_2)/abs(e_current)*e_current_2/abs(e_current_2));
+
+					}
+
+				else if (abs(e_current_1) >= abs(e_current_2)   and  abs(e_current_1) >= abs(e_current))
+					{//ROS_INFO_STREAM("22222222");
+					 
+					 speed1=(max_speed_*e_current_1/abs(e_current_1));
+					 speed=(max_speed_*abs(e_current)/abs(e_current_1)*e_current/abs(e_current));
+					 speed2=(max_speed_*abs(e_current_2)/abs(e_current_1)*e_current_2/abs(e_current_2));
+					}
+
+				else if (abs(e_current_2) >= abs(e_current)   and  abs(e_current_2) >= abs(e_current_1))
+					{
+					 //ROS_INFO_STREAM("3333333");
+					 //std::cout<<"errors "<<e_current<<" "<<e_current_1<<" "<<e_current_2<<" "<<max_speed<<std::endl;
+				
+					 speed2=(max_speed_*e_current_2/abs(e_current_2));
+					 speed=(max_speed_*abs(e_current)/abs(e_current_2)*e_current/abs(e_current));
+					 speed1=(max_speed_*abs(e_current_1)/abs(e_current_2)*e_current_1/abs(e_current_1));
+					}			
+
+				//std::cout<<"speeds "<<speed<<" "<<speed1<<" "<<speed2<<std::endl;
+					
+				if(abs(speed-prev_speed)>interpolation_speed){
+					speed=prev_speed+((speed-prev_speed)/abs(speed-prev_speed)*interpolation_speed);
+					ros::Duration(0.01).sleep();
+				}
+				if(abs(speed1-prev_speed_1)>interpolation_speed){
+					speed1=prev_speed_1+((speed1-prev_speed_1)/abs(speed1-prev_speed_1)*interpolation_speed);	
+					ros::Duration(0.01).sleep();
+					
+				}
+				if(abs(speed2-prev_speed_2)>interpolation_speed){
+					speed2=prev_speed_2+((speed2-prev_speed_2)/abs(speed2-prev_speed_2)*interpolation_speed);
+					ros::Duration(0.01).sleep();
+				}
+
+
+
+				std::cout<<"SpeedLoop"<<"   "<<speed<<"  "<<speed1<<"  "<<speed2<<std::endl;
+				DoneString.data="SpeedLoop";
+				DonePublisher.publish(DoneString);
+
+				prev_speed=speed;
+				prev_speed_1=speed1;
+				prev_speed_2=speed2;
+				vel_msg_.mot1_vel_sps=int(1*speed);
+				vel_msg_1.mot2_vel_sps=int(1*speed1);
+				vel_msg_.mot2_vel_sps=int(1*speed2);
+			
+				velocity_publisher.publish(vel_msg_);
+				velocity_publisher_1.publish(vel_msg_1);
+				//ROS_INFO_STREAM(vel_msg_);ROS_INFO_STREAM(vel_msg_1);
+					}
+		
+			else
+		{
+		
 			goal=position.position_1;
 			goal1=position.position_2;
-			goal2=position.position_3;
-			e_current=goal-float(pose.mot1_enc_steps);
-			e_current_1=goal1-float(pose_1.mot2_enc_steps);
-			e_current_2=goal2-float(pose.mot2_enc_steps);
-			//std::cout<<"errors "<<e_current<<" "<<e_current_1<<" "<<e_current_2<<std::endl;
-			float max_speed_=abs(e_current_1)*3.5;
-			if (max_speed_>full_speed)
-				max_speed_=full_speed;
-			float speed=0;
-			float speed1=0;
-			float speed2=0;
-			if (abs(e_current) >= abs(e_current_1)   and  abs(e_current) >= abs(e_current_2)  )
-				{
-				speed=(max_speed_*e_current/abs(e_current));
-				speed1=(max_speed_*abs(e_current_1)/abs(e_current)*e_current_1/abs(e_current_1));
-				speed2=(max_speed_*abs(e_current_2)/abs(e_current)*e_current_2/abs(e_current_2));
+			goal2=position.position_3;	
+			float e=goal-float(pose.mot1_enc_steps);
+			float e1=goal1-float(pose_1.mot2_enc_steps);
+			float e2=goal2-float(pose.mot2_enc_steps);
+		    float speed=Kp1*e+ki1*(total_error_1)+kd1*(e-prev_e1);
+			float speed1=Kp2*e1+ki2*(total_error_2)+kd2*(e1-prev_e2);
+			float speed2=Kp3*e2+ki3*(total_error_3)+kd3*(e2-prev_e3);
 
-				}
+			if (speed>full_speed)
+				speed=full_speed;
+			else if(speed<-max_speed)
+				speed=-full_speed;
 
-			else if (abs(e_current_1) >= abs(e_current_2)   and  abs(e_current_1) >= abs(e_current))
-				{//ROS_INFO_STREAM("22222222");
-				 
-				 speed1=(max_speed_*e_current_1/abs(e_current_1));
-				 speed=(max_speed_*abs(e_current)/abs(e_current_1)*e_current/abs(e_current));
-				 speed2=(max_speed_*abs(e_current_2)/abs(e_current_1)*e_current_2/abs(e_current_2));
-				}
+			if (speed1>full_speed)
+				speed1=full_speed;
+			else if(speed1<-max_speed)
+				speed1=-full_speed;
 
-			else if (abs(e_current_2) >= abs(e_current)   and  abs(e_current_2) >= abs(e_current_1))
-				{
-				 //ROS_INFO_STREAM("3333333");
-				 //std::cout<<"errors "<<e_current<<" "<<e_current_1<<" "<<e_current_2<<" "<<max_speed<<std::endl;
+			if (speed2>full_speed)
+				speed2=full_speed;
+			else if(speed2<-max_speed)
+				speed2=-full_speed;
+
+			int temp1=00,temp2=00;
+			// if (e<0)
+			// 	temp1=-temp1;
+			// if (e2<0)
+			// 	temp2=-temp2;
 			
-				 speed2=(max_speed_*e_current_2/abs(e_current_2));
-				 speed=(max_speed_*abs(e_current)/abs(e_current_2)*e_current/abs(e_current));
-				 speed1=(max_speed_*abs(e_current_1)/abs(e_current_2)*e_current_1/abs(e_current_1));
-				}			
-
-			//std::cout<<"speeds "<<speed<<" "<<speed1<<" "<<speed2<<std::endl;
-				
-			if(abs(speed-prev_speed)>interpolation_speed){
-				speed=prev_speed+((speed-prev_speed)/abs(speed-prev_speed)*interpolation_speed);
-				ros::Duration(0.01).sleep();
-			}
-			if(abs(speed1-prev_speed_1)>interpolation_speed){
-				speed1=prev_speed_1+((speed1-prev_speed_1)/abs(speed1-prev_speed_1)*interpolation_speed);	
-				ros::Duration(0.01).sleep();
-				
-			}
-			if(abs(speed2-prev_speed_2)>interpolation_speed){
-				speed2=prev_speed_2+((speed2-prev_speed_2)/abs(speed2-prev_speed_2)*interpolation_speed);
-				ros::Duration(0.01).sleep();
-			}
+		 //   if (speed>3000    &&   speed1>3000      &&    speed2>3000)
+		 //   		{speed=speed*(abs(e_current)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));
+		 //   		speed1=speed1*(abs(e_current_1)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));
+		 //   		speed2=speed2*(abs(e_current_2)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));}
 
 
-
-			std::cout<<"SpeedLoop"<<"   "<<speed<<"  "<<speed1<<"  "<<speed2<<std::endl;
-			DoneString.data="SpeedLoop";
-			DonePublisher.publish(DoneString);
 
 			prev_speed=speed;
 			prev_speed_1=speed1;
 			prev_speed_2=speed2;
-			vel_msg_.mot1_vel_sps=int(1*speed);
-			vel_msg_1.mot2_vel_sps=int(1*speed1);
-			vel_msg_.mot2_vel_sps=int(1*speed2);
-		
+			vel_msg_.mot1_vel_sps=int(speed);
+			vel_msg_1.mot2_vel_sps=int(speed1);
+			vel_msg_.mot2_vel_sps=int(speed2);
+			//vel_msg_1.mot1_vel_sps=1*speed;                    ///Just for checking
+
+
+			
+			//std::cout<<speed<<"   "<<speed1<<"   "<<speed2<<std::endl;
+			std::cout<<abs(goal)-abs(float(pose.mot1_enc_steps))<<"    "<<abs(goal1)-abs(float(pose_1.mot2_enc_steps))<<"    "<<abs(goal2)-abs(float(pose.mot2_enc_steps))<<" speeds    "<<temp1+speed<<"   "<<speed1<<"   "<<speed2+temp2<<std::endl;
+			
 			velocity_publisher.publish(vel_msg_);
-			velocity_publisher_1.publish(vel_msg_1);
-			//ROS_INFO_STREAM(vel_msg_);ROS_INFO_STREAM(vel_msg_1);
-				}
-	
-		else
-	{
-	
-		goal=position.position_1;
-		goal1=position.position_2;
-		goal2=position.position_3;	
-		float e=goal-float(pose.mot1_enc_steps);
-		float e1=goal1-float(pose_1.mot2_enc_steps);
-		float e2=goal2-float(pose.mot2_enc_steps);
-	    float speed=Kp1*e+ki1*(total_error_1)+kd1*(e-prev_e1);
-		float speed1=Kp2*e1+ki2*(total_error_2)+kd2*(e1-prev_e2);
-		float speed2=Kp3*e2+ki3*(total_error_3)+kd3*(e2-prev_e3);
-
-		if (speed>full_speed)
-			speed=full_speed;
-		else if(speed<-max_speed)
-			speed=-full_speed;
-
-		if (speed1>full_speed)
-			speed1=full_speed;
-		else if(speed1<-max_speed)
-			speed1=-full_speed;
-
-		if (speed2>full_speed)
-			speed2=full_speed;
-		else if(speed2<-max_speed)
-			speed2=-full_speed;
-
-		int temp1=00,temp2=00;
-		// if (e<0)
-		// 	temp1=-temp1;
-		// if (e2<0)
-		// 	temp2=-temp2;
-		
-	 //   if (speed>3000    &&   speed1>3000      &&    speed2>3000)
-	 //   		{speed=speed*(abs(e_current)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));
-	 //   		speed1=speed1*(abs(e_current_1)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));
-	 //   		speed2=speed2*(abs(e_current_2)/(abs(e_current)+abs(e_current_1)+abs(e_current_2)));}
+			velocity_publisher_1.publish(vel_msg_1);	
 
 
+			ros::spinOnce();
+			//loop_rate.sleep();
+			prev_e1=e;
+			total_error_1=total_error_1+e;
 
-		prev_speed=speed;
-		prev_speed_1=speed1;
-		prev_speed_2=speed2;
-		vel_msg_.mot1_vel_sps=int(speed);
-		vel_msg_1.mot2_vel_sps=int(speed1);
-		vel_msg_.mot2_vel_sps=int(speed2);
-		//vel_msg_1.mot1_vel_sps=1*speed;                    ///Just for checking
+			prev_e2=e1;
+			total_error_2=total_error_2+e1;
 
-
-		
-		//std::cout<<speed<<"   "<<speed1<<"   "<<speed2<<std::endl;
-		std::cout<<abs(goal)-abs(float(pose.mot1_enc_steps))<<"    "<<abs(goal1)-abs(float(pose_1.mot2_enc_steps))<<"    "<<abs(goal2)-abs(float(pose.mot2_enc_steps))<<" speeds    "<<temp1+speed<<"   "<<speed1<<"   "<<speed2+temp2<<std::endl;
-		
-		velocity_publisher.publish(vel_msg_);
-		velocity_publisher_1.publish(vel_msg_1);	
-
-
-		ros::spinOnce();
-		//loop_rate.sleep();
-		prev_e1=e;
-		total_error_1=total_error_1+e;
-
-		prev_e2=e1;
-		total_error_2=total_error_2+e1;
-
-		prev_e3=e2;
-		total_error_3=total_error_3+e2;
-	}
+			prev_e3=e2;
+			total_error_3=total_error_3+e2;
+		}
 	//ros::Duration(0.1).sleep();
 	}
 

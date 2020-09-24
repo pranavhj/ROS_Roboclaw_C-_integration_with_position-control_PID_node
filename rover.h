@@ -61,6 +61,8 @@ class Rover{
 	void ExecuteIK();
 	float* matrixCalculation(float x, float y, float w);
 	void IK();
+	geometry_msgs::Pose2D ConvertPosition(geometry_msgs::Pose2D remoteState);
+	void GotoPosition(geometry_msgs::Pose2D remoteState);
 
 
 	

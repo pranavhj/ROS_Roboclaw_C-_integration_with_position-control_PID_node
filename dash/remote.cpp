@@ -3,13 +3,11 @@
 
 Remote::Remote(ros::NodeHandle *n){
     remoteState.header.seq=0;
-    ROS_INFO_STREAM("Remote initialized");
+    
    
     
     ros::Rate rate(10);
     inv_kinematics_publisher=n->advertise<geometry_msgs::Pose2D>("/inv_kinematics",10);
-    cmd_vel_publisher=n->advertise<geometry_msgs::Twist>("/cmd_vel",100);
-    
     robot_odom_position_subscriber=n->subscribe("/robot_odom_position",10,&Remote::RobotOdomCallback,this);
     remoteStateSubscriber=n->subscribe("/remote_state",10,&Remote::RemoteStateCallback,this);
     
@@ -88,33 +86,19 @@ void Remote::Execute(){
         finalState.x=diff.x;
         finalState.y=diff.y;
         finalState.theta=diff.theta;
-        {
-            inv_kinematics_publisher.publish(finalState);
-            //ros::Duration(0.1).sleep();
-        }   
+        //inv_kinematics_publisher.publish(finalState);
         //ROS_INFO_STREAM(finalState);
         //ROS_INFO_STREAM(remoteState);
-        
+        //ros::Duration(0.01).sleep();
         remoteVals=finalState;
-        
-        auto cmd_vel=GetRemoteState();
-        cmd_vel_publisher.publish(cmd_vel);
         ros::spinOnce();
 
 }
 
 
 
-geometry_msgs::Twist Remote::GetRemoteState(){
-    remoteStateCMDVEL.linear.x=remoteVals.x;
-    remoteStateCMDVEL.linear.y=remoteVals.y;
-    remoteStateCMDVEL.linear.z=0;
-    remoteStateCMDVEL.angular.x=0;
-    remoteStateCMDVEL.angular.y=0;
-    remoteStateCMDVEL.angular.z=remoteVals.theta;
-    
-    
-    return remoteStateCMDVEL;
+geometry_msgs::Pose2D Remote::GetRemoteState(){
+    return remoteVals;
 }
 
 

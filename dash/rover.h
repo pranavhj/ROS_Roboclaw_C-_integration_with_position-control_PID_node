@@ -5,13 +5,12 @@
 #include "motor_controller/position.h"
 #include "std_msgs/String.h"
 #include "geometry_msgs/Pose2D.h"
-#include "geometry_msgs/Twist.h"
 #include <sstream>
 #include <iostream>
 #include "sensor_msgs/Joy.h"
-#include "remote.h"
+
 #include <Eigen/Dense>
-#include <Eigen/Geometry>
+
 class Rover{
 
 	private:
@@ -23,8 +22,6 @@ class Rover{
 		ros::Publisher velocity_publisher;
 		ros::Subscriber pose_subscriber;
 		ros::Subscriber position_subscriber;
-		
-		ros::Subscriber cmd_vel_subscriber;
 
 		
 		float targets[3];
@@ -46,10 +43,6 @@ class Rover{
 		geometry_msgs::Pose2D FKPose;
 		ros::NodeHandle n;
 		geometry_msgs::Pose2D IKpose;
-		
-		geometry_msgs::Twist cmd_vel;
-
-		Remote *remote;
 
 		float w1_prev=0;
 		float w2_prev=0;
@@ -74,21 +67,17 @@ class Rover{
 
 		Eigen::Vector3d Y;
 		Eigen::Vector3d D;
-		
+
+
 
 	public:
 
 	Rover(ros::NodeHandle *n);
 	void poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
 	void pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
-	
 	void positionCallback(const motor_controller::position::ConstPtr& position_message);
 	void IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message);
-	void CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message);
-	
-	
-	void ExecuteCMDVEL();
-	void SetRemote(Remote *c){remote=c;}
+	void ExecuteCMDVEL(geometry_msgs::Pose2D remoteVals);
 
 
 

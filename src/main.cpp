@@ -18,12 +18,17 @@ int main(int argc, char **argv)
 ros::init(argc,argv,"main_node");
 ros::NodeHandle n;
 ros::Rate rate(10);
-
+std::cout<<"Startted MAIN"<<std::endl;
 Rover *rover=new Rover(&n);
 Remote *remote=new Remote(&n);
+rover->SetRemote(remote);
 while(ros::ok()){
-	remote->Execute();
-	rover->ExecuteIK();
+	//remote->Execute();
+	//rover->ExecuteIK();
+	rover->ExecuteCMDVEL();
+	//rover->GotoPosition(remote->GetRemoteState());
+	//ROS_INFO_STREAM(remote->GetRemoteState());
+	ros::spinOnce();
 	}
 }
 /*

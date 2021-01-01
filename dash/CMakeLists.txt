@@ -18,15 +18,9 @@ find_package(catkin REQUIRED COMPONENTS
   roboclaw
   geometry_msgs
   sensor_msgs
-
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
 )
 
-
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -108,10 +102,9 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(include/rover_manager 
 	${catkin_INCLUDE_DIRS} 
-	${Boost_INCLUDE_DIR} 
-	${EIGEN3_INCLUDE_DIRS} 
+	 ${Boost_INCLUDE_DIR} 
+	${EIGEN3_INCLUDE_DIRS}  
 )
-
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -122,34 +115,13 @@ include_directories(include/rover_manager
 #add_executable(main_node src/main.cpp)#src/robot_controller.cpp src/sensor.cpp src/order_manager.cpp)
 add_executable(main src/main.cpp src/rover.cpp src/remote.cpp)
 
-add_executable(tf_publisher src/tf_publisher.cpp)
-
-add_executable(robot_frame_publisher src/publishrobotframe.cpp)
-
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(main  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
-
-add_dependencies(tf_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
-
-add_dependencies(robot_frame_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
+add_dependencies(main  ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
   target_link_libraries(main
-    ${catkin_LIBRARIES}   
-    
-  )
-
-
-  target_link_libraries(tf_publisher
-    ${catkin_LIBRARIES}   
-    
-  )
-
-
-target_link_libraries(robot_frame_publisher
-    ${catkin_LIBRARIES}   
-    
+    ${catkin_LIBRARIES}
   )
 
 #############

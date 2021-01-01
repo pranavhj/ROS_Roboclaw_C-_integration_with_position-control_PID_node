@@ -394,7 +394,7 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("PUBLISHING ROBOT FRAME..........");
 
 
-    geometry_msgs::Pose robot_in_origin;
+    geometry_msgs::Pose robot_in_origin; 
     robot_in_origin.position.x=centerAndRadiusVect[0];
     robot_in_origin.position.y=centerAndRadiusVect[1];
     robot_in_origin.position.z=centerAndRadiusVect[2];
@@ -448,7 +448,7 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("FRAME PUBLISHED");
     ros::spinOnce();
     ros::Duration(3.0).sleep();
-    
+
     
 
     

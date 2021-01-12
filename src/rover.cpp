@@ -1,13 +1,15 @@
 #include "rover.h"
 
-
+#include "helper.h"
 
 Rover::Rover(ros::NodeHandle *n){
+	std::cout<<"Before Ini"<<std::endl;
 	InitializeMatrices();
 	velocity_publisher=n->advertise<roboclaw::RoboclawMotorVelocity>("/motor_cmd_vel",10);
 	velocity_publisher_1=n->advertise<roboclaw::RoboclawMotorVelocity>("/motor_cmd_vel_1",10);
 	ForwardKinematicsPositionPublisher=n->advertise<geometry_msgs::Pose2D>("/robot_odom_position",10);
 	DonePublisher=n->advertise<std_msgs::String>("/DoneTopic",10);
+	reset_enc_publisher=n->advertise<std_msgs::Bool>("/reset_enc",10);
 
 	
 	pose_subscriber=n->subscribe("/motor_enc",100,&Rover::poseCallback,this);
@@ -24,10 +26,148 @@ Rover::Rover(ros::NodeHandle *n){
 
 	ForwardKinematics();              //so that it does not move to zero from initial pose
 	IKpose=FKPose;
-	ROS_INFO_STREAM(IKpose);
-	ros::Duration(0.5).sleep();
+	// ROS_INFO_STREAM(IKpose);
+	// ros::Duration(0.5).sleep();
+
+
+	TF_=new TF();
+
+
+	std_msgs::Bool d;
+	d.data=true;
+	reset_enc_publisher.publish(d);
+	back:
+
+	// try
+	{	
+		ros::spinOnce();
+		tf::StampedTransform camera_tf_transform_;
+
+	    transformListener.waitForTransform("origin", "robot_frame", ros::Time(0),
+	                                             ros::Duration(3));
+
+	    transformListener.lookupTransform("origin", "robot_frame", ros::Time(0),
+	                                    camera_tf_transform_);
+
+
+
+	    // ROS_INFO_STREAM("Transform b/w origin and robot_frame is ");
+
+    	// std::cout<<camera_tf_transform_.getOrigin().x()<<camera_tf_transform_.getOrigin().y()<<camera_tf_transform_.getOrigin().z()<<std::endl;
+
+	    //publish robot_ini state
+
+
+		//do fk
+		//get current pose
+		//get val of ini pose from that
+
+	    FK();
+	    FKVROriginFrame();
+	    ForwardKinematics();
+
+
+
+	    std::cout<<"Current pose is Xn_1 "<<Xn_1<<std::endl;
+	    std::cout<<"FKPose is from ForwardKinematics ";
+	    ROS_INFO_STREAM(FKPose);
+
+
+	    auto quat=EulerToQuaternion(0,0,-Xn_1(2));
+	    std::cout<<"Eul to quat done which is"<<std::endl;
+	    ROS_INFO_STREAM(quat);
+
+
+
+	    auto tht=float(Xn_1(2));
+	    auto x=float(Xn_1(0))/1000.0; auto y=float(Xn_1(1))/1000.0;
+	    auto xo=-( (x*cos(tht)) + (y*sin(tht)) );
+	    auto yo=( -(x*sin(tht)) + (y*cos(tht)) );
+
+
+
+
+
+	    auto  robot_pose_in_origin_ini =TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(xo,yo,0,   quat.x,quat.y,quat.z,quat.w), "robot_frame", "origin");
+	    std::cout<<"Robot Frame Get in frame done"<<std::endl;
+
+	    // auto robot_pose_in_origin_ini=getInFrame(MakeGeometryMsgsPose(0,0,0 ,0,0,0,1), "/robot_frame",  "/origin");
+	    ROS_INFO_STREAM("Ini Robot pose in origin  is ");
+	    ROS_INFO_STREAM(robot_pose_in_origin_ini);
+
+
+	    TF_->PublishStaticTransform("/robot_initial_frame", "/origin",robot_pose_in_origin_ini);
+
+
+	    
+	    	// ROS_ERROR_STREAM("Publishing new robot_initial_frame");
+	    	// static tf2_ros::StaticTransformBroadcaster static_broadcaster;
+		    // geometry_msgs::TransformStamped static_transformStamped;
+
+		    // static_transformStamped.header.stamp = ros::Time::now();
+		    // static_transformStamped.header.frame_id = "/origin";
+		    // static_transformStamped.child_frame_id = "/robot_frame_initial";
+		    // static_transformStamped.transform.translation.x = robot_pose_in_origin_ini.position.x;
+		    // static_transformStamped.transform.translation.y = robot_pose_in_origin_ini.position.y;
+		    // static_transformStamped.transform.translation.z = robot_pose_in_origin_ini.position.z;
+
+
+		    // static_transformStamped.transform.rotation.x = robot_pose_in_origin_ini.orientation.x;
+		    // static_transformStamped.transform.rotation.y = robot_pose_in_origin_ini.orientation.y;
+		    // static_transformStamped.transform.rotation.z = robot_pose_in_origin_ini.orientation.z;
+		    // static_transformStamped.transform.rotation.w = robot_pose_in_origin_ini.orientation.w;
+		    // static_broadcaster.sendTransform(static_transformStamped);	
+
+
+
+	}
+	
+
+
+
+
+
 	
 }
+
+
+
+geometry_msgs::Quaternion Rover::EulerToQuaternion(double x,double y,double z){
+	tf2::Quaternion myQuaternion;
+    myQuaternion.setRPY( x,y,z);  // Create this quaternion from roll/pitch/yaw (in radians)
+    myQuaternion.normalize();
+    ROS_INFO_STREAM(myQuaternion);
+    geometry_msgs::Quaternion geom_quat = tf2::toMsg(myQuaternion);
+    return geom_quat;
+}
+
+
+
+// geometry_msgs::Pose Rover::MakeGeometryMsgsPose(double px,double py,double pz,double rx,double ry,double rz,double rw){
+// 	geometry_msgs::Pose p;
+// 	p.position.x=px;
+// 	p.position.y=py;
+// 	p.position.z=pz;
+
+// 	p.orientation.x=rx;
+// 	p.orientation.y=ry;
+// 	p.orientation.z=rz;
+// 	p.orientation.w=rw;
+// 	return p;
+// }
+
+
+// geometry_msgs::Pose2D Rover::MakeGeometryMsgsPose2D(double px,double py,double pt){
+// 	geometry_msgs::Pose2D p;
+// 	p.x=px;
+// 	p.y=py;
+// 	p.theta=pt;
+// 	return p;
+// }
+
+
+
+
 
 
 
@@ -577,11 +717,16 @@ void Rover::ForwardKinematics(){
 
 	//std::cout<<w1<<w2<<w3<<std::endl;
 
+
+	
+	
 	geometry_msgs::Pose2D temp;
 	temp.x=((4503599627370496.0*w1)/25397388702750567.0) - ((1501205072273259.0*w2)/16931592468500378.0) - ((6004778717228287.0*w3)/67726369874001512.0);
     temp.y=(w1/67726369874001512.0) - ((5196483093625199.0*w2)/33863184937000756.0) + ((1299120773406300.0*w3)/8465796234250189.0);
  	temp.theta=(- (562949953421312.0*w1)/1904804152706292525.0) - ((5124113313359391.0*w2)/17337950687744387072.0) - ((160127432459421.0*w3)/541810958992012096.0);
- 	temp.theta=temp.theta*180.0/3.14159;
+ 	
+
+ 	temp.theta=temp.theta*180.0/3.14159 *angle_correction_factor  ;
  	FKPose=temp;
 	//std::cout<<temp.x<<"  "<<temp.y<<"  "<<temp.theta<<std::endl;
 	ForwardKinematicsPositionPublisher.publish(temp);
@@ -628,9 +773,9 @@ void Rover::InitializeMatrices(){
 	B(1,2)= ((1299120773406300.0)/8465796234250189.0);
 
 
-	B(2,0)= -(562949953421312.0)/1904804152706292525.0;
-	B(2,1)= - ((5124113313359391.0)/17337950687744387072.0);
-	B(2,2)= -(160127432459421.0)/541810958992012096.0;
+	B(2,0)= -(562949953421312.0)/1904804152706292525.0*angle_correction_factor;
+	B(2,1)= - ((5124113313359391.0)/17337950687744387072.0)*angle_correction_factor;
+	B(2,2)= -(160127432459421.0)/541810958992012096.0*angle_correction_factor;
 
 
 	std::cout<<"############## B #############"<<B<<std::endl;
@@ -699,7 +844,9 @@ void Rover::InitializeMatrices(){
 
 
 }
-
+//
+// Gives pose of robot wrt robot_start 
+//
 void Rover::FK(){
 
 	ros::spinOnce();
@@ -721,69 +868,130 @@ void Rover::FK(){
 			B*W;
 	
 
-	//std::cout<<X<<std::endl;
-	//std::cout<<std::endl<<std::endl;
+	
+
+	
 
 
 
 	Xn_1=X;
+
+
+
 	W_prev<<w1_current,w2_current,w3_current;
 
 	
 	//Update Xn-1 from KF step and update W_prev to current rotations when KF calc
 }
 
+
+
+void Rover::FKVROriginFrame(){
+
+	ros::spinOnce();
+	auto w1_current=float(pose.mot1_enc_steps);
+	auto w2_current=-float(pose_1.mot2_enc_steps);
+	auto w3_current=-float(pose.mot2_enc_steps);
+
+	Eigen::Vector3d W;
+	W.resize(3);
+
+
+	
+	W<<w1_current-W_prev(0),
+	w2_current-W_prev(1),
+	w3_current-W_prev(2);
+
+	
+	auto X= A*Xn_1 + 
+			B*W;
+
+	
+
+
+
+	Xn_1=X;
+	W_prev<<w1_current,w2_current,w3_current;
+
+	// std::cout<<X(2)<<std::endl;
+
+
+
+	
+	//Update Xn-1 from KF step and update W_prev to current rotations when KF calc
+}
+
+
+//Publishes frame robot_frame_KF
 void Rover::KalmanFilter(){
 	//ROS_INFO_STREAM("KalmanFilter");
 	
 	FK();
+	FKVROriginFrame();
+
+
+	//Xn-1 is in robot_initial_frame
+
+	//convert this to origin
+
+	auto pose_in_robot_initial=TF_->ConvertVectorToPose( {double(Xn_1(0))/1000.0,double(Xn_1(1))/1000.0,double(Xn_1(2))} );   //in m rad
+
+	auto pose_in_origin=TF_->getInFrame(transformListener,pose_in_robot_initial,"/robot_initial_frame", "/origin");
+
+	auto Xn_1dash=TF_->PosetoEigenVector3d(pose_in_origin);// in m rad
+
+	std::cout<<" Prediction pose wrt origin is "<<Xn_1dash<<std::endl<<std::endl;
 
 
 	
-	
 
-	auto Pkest=A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();
+	auto Pkest=A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();             //include transformation in A that happens by tf
 	//ROS_INFO_STREAM("prediction1 done");
 
-	auto K= Pkest* H.transpose()*((H*Pk_1*H.transpose() + R ).inverse());   //M is 1
+	auto K= Pkest* H.transpose()*((H*Pk_1*H.transpose() + R ).inverse());   //M is 1    include transformation in H that happens by tf
 	//ROS_INFO_STREAM("Kdone");
 
+	{
+		//ROS_INFO_STREAM("Kdone");
+		//ROS_INFO_STREAM("prediction done");
+		//////////////////
+		////////////////
+		// Get VR transform values
+		//Y is updated in subsriber
+		//////////////////////////
+		////////////////////////
+		
 
-	
-
-
-
-
-	//ROS_INFO_STREAM("Kdone");
-	//ROS_INFO_STREAM("prediction done");
-	//////////////////
-	////////////////
-	// Get VR transform values
-	//Y is updated in subsriber
-	//////////////////////////
-	////////////////////////
-	
-
-	
-	float error1 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/5));
-	float error2 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/5));
-	float error3 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/0.01));
-	Eigen::Vector3d Er;
-	Er.resize(3);
-	Er<<error1,error2,error3;
+		
+		// float error1 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/5));
+		// float error2 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/5));
+		// float error3 = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/0.01));
+		// Eigen::Vector3d Er;
+		// Er.resize(3);
+		// Er<<error1,error2,error3;
+	}
 
 
-	auto Yest=H*(Xn_1+Er)+D;                      //D has to have value of ini angle
-
-	auto Y=H*(Xn_1)+D;                            //will be from vr controller
+	//converts prediction into observation
+	auto Yest=H*(Xn_1dash)+D;                      //D has to have value of ini angle but not in full tf case
 
 
 
-	std::cout<<K<<std::endl<<std::endl<<std::endl;
+	// auto Y=H*(Xn_1)+D;                            //will be from vr controller get robot frame from tf
 
 
-	auto X=Xn_1+ K*(Y-Yest);
-	std::cout<<X<<std::endl<<std::endl<<std::endl;
+	//actual obs
+	auto robot_pose_in_origin=TF_->getInFrame(transformListener, TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1) , "/robot_frame" , "/origin");
+	auto Y=TF_->PosetoEigenVector3d(robot_pose_in_origin);
+
+
+
+
+	//std::cout<<K<<std::endl<<std::endl<<std::endl;
+
+
+	auto X=Xn_1dash+ K*(Y-Yest);
+	// std::cout<<X<<std::endl<<std::endl<<std::endl;
 
 	auto Pmeas=(I3x3-K*H)*Pkest;
 
@@ -794,6 +1002,8 @@ void Rover::KalmanFilter(){
 	/////////////////
 	//Publish X
 	///////////////////
+
+	//convert X back to robot initial frame and submit back a vector 3d
 
 
 

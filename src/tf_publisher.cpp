@@ -1,3 +1,4 @@
+#pragma once
 #include "ros/ros.h"
 #include "std_msgs/Float64.h"
 #include "control_msgs/JointControllerState.h"
@@ -6,7 +7,7 @@
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Quaternion.h"
 
-#include "gazebo_msgs/ModelStates.h"
+//#include "gazebo_msgs/ModelStates.h"
 #include "geometry_msgs/Pose.h"
 #include <algorithm>
 #include <vector>
@@ -22,6 +23,14 @@
 #include <typeinfo>
 #include <fstream>
 #include <tf/transform_listener.h>
+
+
+#include "tf_tools.cpp"
+
+// #include "helper.h"
+
+
+
 using namespace std;
 geometry_msgs::PoseStamped trackerPoseStamped;//trackerPoseStamped.pose.orientation.w=1;
 geometry_msgs::PoseStamped leftControllerPoseStamped;//leftControllerPoseStamped.pose.orientation.w=1;
@@ -29,105 +38,32 @@ geometry_msgs::PoseStamped rightControllerPoseStamped;//rightControllerPoseStamp
 geometry_msgs::PoseStamped headSetPoseStamped;//headSetPoseStamped.pose.orientation.w=1;
 float CallbackCounter=0;
 float tf_publisher_counter=0;
-tf2_ros::TransformBroadcaster *odom_broadcaster;
-geometry_msgs::TransformStamped odom_trans;
+
+
+
+
+TF *TF_;
 
 // tf::TransformListener *transformListener;
 
 
 
-vector<float> QuaterniontoEuler(geometry_msgs::Pose odom_){
-    vector<float> temp;
-    geometry_msgs::Quaternion orientation=odom_.orientation;
-    tf2::Quaternion q(
-    orientation.x,
-    orientation.y,
-    orientation.z,
-    orientation.w);   
-    //ROS_INFO_STREAM(q);
-    tf2::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    temp.push_back(180+(roll*180/3.14159));
-    temp.push_back(180+(pitch*180/3.14159));
-    temp.push_back(180+(yaw*180/3.14159)-19.5);
-    return temp;
-}
 
 
-void publishFrame(geometry_msgs::PoseStamped poseStamped,string frame_id){
-
-    geometry_msgs::TransformStamped odom_trans;
-    odom_trans.header.stamp = ros::Time::now();
-    odom_trans.header.frame_id = "origin";
-    odom_trans.child_frame_id = frame_id;
-
-    odom_trans.transform.translation.x = poseStamped.pose.position.x;
-    odom_trans.transform.translation.y = poseStamped.pose.position.y;
-    odom_trans.transform.translation.z = poseStamped.pose.position.z;
-    odom_trans.transform.rotation = poseStamped.pose.orientation;
-   
-       //send the transform
-    odom_broadcaster->sendTransform(odom_trans);
-
-    // tf_publisher_counter++;
-    // cout<<"tf  "<<tf_publisher_counter<<endl;
 
 
-}
+
 
 
 void PublishToTF(){
-    //tf2_ros::TransformBroadcaster odom_broadcaster;
-    // geometry_msgs::TransformStamped odom_trans;
-    // odom_trans.header.stamp = ros::Time::now();
-    // odom_trans.header.frame_id = "origin";
-    // odom_trans.child_frame_id = "tracker";
-
-    // odom_trans.transform.translation.x = trackerPoseStamped.pose.position.x;
-    // odom_trans.transform.translation.y = trackerPoseStamped.pose.position.y;
-    // odom_trans.transform.translation.z = trackerPoseStamped.pose.position.z;
-    // odom_trans.transform.rotation = trackerPoseStamped.pose.orientation;
    
-    //    //send the transform
-    // odom_broadcaster->sendTransform(odom_trans);
 
-    // tf_publisher_counter++;
-    // cout<<"tf  "<<tf_publisher_counter<<endl;
-
-    publishFrame(trackerPoseStamped,"tracker");
-    publishFrame(leftControllerPoseStamped,"left_controller");
-    publishFrame(rightControllerPoseStamped,"right_controller");
-    publishFrame(headSetPoseStamped,"headset");
+    TF_->publishFrame(trackerPoseStamped,"tracker","origin");
+    TF_->publishFrame(leftControllerPoseStamped,"left_controller","origin");
+    TF_->publishFrame(rightControllerPoseStamped,"right_controller","origin");
+    TF_->publishFrame(headSetPoseStamped,"headset","origin");
 
 
-
-    // Odom_.header.frame_id="odom";
-    // Odom_.pose.pose=odom_;
-    // Odom_.header.stamp=ros::Time::now();
-    // Odom_.pose.pose=odom_;
-    //Odom_.child_frame_id = "base_link";
-}
-
-
-
-geometry_msgs::Pose getInFrame(tf::TransformListener &transformListener,geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id){
-
-    // tf::TransformListener transformListener1;
-    geometry_msgs::PoseStamped StampedPose_in,StampedPose_out; 
-    StampedPose_in.header.frame_id = pose_frame_id;
-    pose.orientation.w=1;
-    StampedPose_in.pose = pose;
-    //ROS_INFO_STREAM("StampedPose_int (" << StampedPose_in.pose.position.x <<","<< StampedPose_in.pose.position.y << "," << StampedPose_in.pose.position.z<<")");
-    transformListener.transformPose(op_frame_id,StampedPose_in,StampedPose_out);
-
-
-    cout<<"ROBOT IN TRACKER "<<endl;
-    ROS_INFO_STREAM(StampedPose_out);
-    
-
-    return StampedPose_out.pose;
-    
 }
 
 
@@ -232,7 +168,7 @@ class TextData{
         void clear(){
             //auto prev_data=ReadDataFromFile();
 
-            std::ofstream myfile("/home/pranav/ur5_ws/src/robot_control/example.md");
+            std::ofstream myfile(fileName);
 
             if (myfile.is_open()) { 
                 myfile<<"";
@@ -249,26 +185,14 @@ class TextData{
 
 void StartTF(){
     
-    odom_trans.header.stamp = ros::Time::now();
-    odom_trans.header.frame_id = "origin";
-    odom_trans.child_frame_id = "base";
 
-    odom_trans.transform.translation.x = 0;
-    odom_trans.transform.translation.y = 0;
-    odom_trans.transform.translation.z = 0;
-    odom_trans.transform.rotation.x=0;
-    odom_trans.transform.rotation.y=0;
-    odom_trans.transform.rotation.z=0;
-    odom_trans.transform.rotation.w=1;
-   
-       //send the transform
-    odom_broadcaster->sendTransform(odom_trans);
-
-
-
-
-
+    geometry_msgs::PoseStamped p;
+    p.pose=TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1);
+    TF_->publishFrame(p,"base","origin");
+ 
 }
+
+
 std::vector<double>  Parse(std::string s){
     std::vector<double> vect;
     int start=1;
@@ -276,7 +200,7 @@ std::vector<double>  Parse(std::string s){
         if(s[i]==',' ||   s[i]==')'){
             auto numstr=s.substr(start,i-start-1);
             start=i+1;
-            //std::cout<<std::stod(numstr)<<std::endl;
+            // std::cout<<std::stod(numstr)<<std::endl;
             vect.push_back(std::stod(numstr));
 
 
@@ -291,57 +215,87 @@ std::vector<double>  Parse(std::string s){
 
 
 
-void PublishRobotFrame(tf::TransformListener &transformListener,vector<double> crvect){
-    tf::StampedTransform camera_tf_transform_;
+void PublishRobotFrame(tf::TransformListener &transformListener,vector<double> crvect, bool calibration){
+    
+	std::string fileName="/home/pranav/catkin_ws/src/rover/src/calibration2.txt";
+	TextData t(fileName);
 
-    transformListener.waitForTransform("/origin", "/tracker", ros::Time(0),
-                                             ros::Duration(3));
+	geometry_msgs::Pose robot_in_tracker;
+	 if (calibration==true){
+	    
 
-    transformListener.lookupTransform("/origin", "/tracker", ros::Time(0),
-                                    camera_tf_transform_);
-
-    ROS_INFO_STREAM("PUBLISHING ROBOT FRAME..........");
-
-
-    geometry_msgs::Pose robot_in_origin;
-    robot_in_origin.position.x=crvect[0];
-    robot_in_origin.position.y=crvect[1];
-    robot_in_origin.position.z=crvect[2];
-    robot_in_origin.orientation.w=1;
+	    ROS_INFO_STREAM("PUBLISHING ROBOT FRAME..........");
 
 
+	    geometry_msgs::Pose robot_in_origin;
+	    robot_in_origin.position.x=crvect[0];
+	    robot_in_origin.position.y=crvect[1];
+	    robot_in_origin.position.z=crvect[2];
+	    robot_in_origin.orientation.w=1;
 
-    cout<<"ROBOT IN ORIGIN "<<endl;
-    ROS_INFO_STREAM(robot_in_origin);
 
 
+	    cout<<"ROBOT IN ORIGIN "<<endl;
+	    ROS_INFO_STREAM(robot_in_origin);
+
+
+	    
+
+
+        PublishToTF();PublishToTF();ros::Duration(0.1).sleep();    ros::spinOnce();
+        
+                robot_in_tracker=TF_->getInFrame(transformListener,robot_in_origin,"/origin","/tracker");
+        
+                // robot_in_tracker=robot_in_origin;
+        
+                std::string transform_string="(";
+                transform_string+=(std::to_string(robot_in_tracker.position.x)+", ");
+                transform_string+=(std::to_string(robot_in_tracker.position.y)+", ");
+                transform_string+=(std::to_string(robot_in_tracker.position.z)+", ");
+        
+                transform_string+=(std::to_string(robot_in_tracker.orientation.x)+", ");
+                transform_string+=(std::to_string(robot_in_tracker.orientation.y)+", ");
+                transform_string+=(std::to_string(robot_in_tracker.orientation.z)+", ");
+                transform_string+=(std::to_string(robot_in_tracker.orientation.w)+")");
+                
+                cout<<"ROBOT IN tracker msg "<<endl;
+                ROS_INFO_STREAM(robot_in_tracker);
+        
+
+	    // cout<<"ROBOT in Traacker string  "<<endl;
+	    // ROS_INFO_STREAM(transform_string);
+	    
+	    t.clear();
+	    t.write(transform_string);
+	    ROS_INFO_STREAM("ROBOT IN TRACKER WRITTEN TO calibration2.txt");
+	    return;
+
+	}
+	
+	PublishToTF();PublishToTF();ros::spinOnce();
+	//Read transform from text file to robot_in_tracker
+	std::string robot_in_tracker_string=t.read();
+	auto robot_in_tracker_vect=Parse(robot_in_tracker_string);
+
+	robot_in_tracker.position.x=robot_in_tracker_vect[0];
+	robot_in_tracker.position.y=robot_in_tracker_vect[1];
+	robot_in_tracker.position.z=robot_in_tracker_vect[2];
+	robot_in_tracker.orientation.x=robot_in_tracker_vect[3];
+	robot_in_tracker.orientation.y=robot_in_tracker_vect[4];
+	robot_in_tracker.orientation.z=robot_in_tracker_vect[5];
+	robot_in_tracker.orientation.w=robot_in_tracker_vect[6];
+
+	PublishToTF();PublishToTF();ros::spinOnce();
+
+	ROS_INFO_STREAM("ROBOT IN TRACKER WITHOUT Calibration");
+	ROS_INFO_STREAM(robot_in_tracker);
+    
+    auto ori=TF::EulerToQuaternion(3.14159/2,0,3.14159/2);
+    robot_in_tracker.orientation=ori;
     
 
-
-
-
-    auto robot_in_tracker=getInFrame(transformListener,robot_in_origin,"/origin","/tracker");
-
+    TF_->PublishStaticTransform("robot_frame", "tracker", robot_in_tracker);
     
-
-    static tf2_ros::StaticTransformBroadcaster static_broadcaster;
-    geometry_msgs::TransformStamped static_transformStamped;
-
-    static_transformStamped.header.stamp = ros::Time::now();
-    static_transformStamped.header.frame_id = "tracker";
-    static_transformStamped.child_frame_id = "robot_frame";
-    static_transformStamped.transform.translation.x = robot_in_tracker.position.x;
-    static_transformStamped.transform.translation.y = robot_in_tracker.position.y;
-    static_transformStamped.transform.translation.z = robot_in_tracker.position.z;
-    // tf2::Quaternion quat;
-    // quat.setRPY(atof(argv[5]), atof(argv[6]), atof(argv[7]));
-    static_transformStamped.transform.rotation.x = 0;
-    static_transformStamped.transform.rotation.y = 0;
-    static_transformStamped.transform.rotation.z = 0;
-    static_transformStamped.transform.rotation.w = 1;
-    static_broadcaster.sendTransform(static_transformStamped);
-
-
     
 
 
@@ -351,6 +305,10 @@ void PublishRobotFrame(tf::TransformListener &transformListener,vector<double> c
 
 
 }
+
+
+
+
 
 int main(int argc, char **argv)
 {   
@@ -366,6 +324,9 @@ int main(int argc, char **argv)
     cout<<"Node handle MAIN "<<endl;
 
 
+    TF_=new TF();
+
+
     
 
     ros::Subscriber tracker_subscriber_ = n_.subscribe("/trackerPose", 10000, TrackerCallback);
@@ -377,23 +338,58 @@ int main(int argc, char **argv)
 
 
 
-    odom_broadcaster=new tf2_ros::TransformBroadcaster();
+    
     tf::TransformListener transformListener;
     StartTF();
     
-    bool robotFrame;
+    bool calibration;
     //auto args=n_.getParam("param", check);
-    auto args=n_.getParam("robotFrame", robotFrame);
+    auto args=n_.getParam("calibration", calibration);
 
 
-    cout << robotFrame << " "<<args<<endl;
+    cout << calibration << " "<<args<<endl;
+    if(args==0){
+    	ROS_INFO_STREAM("Wrong argument passed, please pass correct arg and run again");
+    	ROS_INFO_STREAM("correct args are _calibration:=false _calibration:=true");
+    	return 0;
+
+    }
     // ROS_INFO("Got parameter : %s", check.c_str());
 
 
 
     vector<double> centerAndRadiusVect;
-    if (robotFrame){
-        auto calibInfoFile=TextData();
+    if (calibration==1){
+    	ROS_INFO_STREAM("Doing Calibration");
+    	ROS_INFO_STREAM("Ensure that receiveUDP.py is running");
+    	auto calibInfoFile=TextData();
+        std::string centerandradius=calibInfoFile.read();
+        centerAndRadiusVect=Parse(centerandradius);
+        ROS_INFO_STREAM("centerandradius is ");
+        std::cout<<centerAndRadiusVect[0]<<" "<<centerAndRadiusVect[1]<<" "<<centerAndRadiusVect[2]<<" "<<centerAndRadiusVect[3]<<endl;
+
+        int temp_counter=0;
+        while(temp_counter<8000){
+            PublishToTF();PublishToTF();ros::spinOnce();
+            temp_counter++;
+        }
+
+
+        PublishRobotFrame(transformListener,centerAndRadiusVect,calibration);
+
+        
+        ros::spinOnce();
+        ROS_INFO_STREAM("ENDING PROGRAM, NOW RUN WITH calibration argument set to false");
+        return 0;
+
+
+        
+
+    }
+
+    else{
+    	ROS_INFO_STREAM("Directly reading data");
+    	auto calibInfoFile=TextData();
         std::string centerandradius=calibInfoFile.read();
         centerAndRadiusVect=Parse(centerandradius);
         ROS_INFO_STREAM("centerandradius is ");
@@ -407,72 +403,9 @@ int main(int argc, char **argv)
         }
         
 
-        PublishRobotFrame(transformListener,centerAndRadiusVect);
+        PublishRobotFrame(transformListener,centerAndRadiusVect,calibration);
 
-        /*
-        {
-            tf::StampedTransform camera_tf_transform_;
-
-            transformListener.waitForTransform("/origin", "/tracker", ros::Time(0),
-                                                     ros::Duration(3));
-
-            transformListener.lookupTransform("/origin", "/tracker", ros::Time(0),
-                                            camera_tf_transform_);
-
-            ROS_INFO_STREAM("PUBLISHING ROBOT FRAME..........");
-
-
-            geometry_msgs::Pose robot_in_origin;
-            robot_in_origin.position.x=centerAndRadiusVect[0];
-            robot_in_origin.position.y=centerAndRadiusVect[1];
-            robot_in_origin.position.z=centerAndRadiusVect[2];
-            robot_in_origin.orientation.w=1;
-
-
-
-            cout<<"ROBOT IN ORIGIN "<<endl;
-            ROS_INFO_STREAM(robot_in_origin);
-
-
-            
-
-            geometry_msgs::PoseStamped StampedPose_in,StampedPose_out; 
-            StampedPose_in.header.frame_id = "/origin";
-            robot_in_origin.orientation.w=1;
-            StampedPose_in.pose = robot_in_origin;
-            //ROS_INFO_STREAM("StampedPose_int (" << StampedPose_in.pose.position.x <<","<< StampedPose_in.pose.position.y << "," << StampedPose_in.pose.position.z<<")");
-            transformListener.transformPose("/tracker",StampedPose_in,StampedPose_out);
-
-
-            cout<<"ROBOT IN TRACKER "<<endl;
-            ROS_INFO_STREAM(StampedPose_out);
-            
-
-            // return StampedPose_out.pose;
-            auto robot_in_tracker=StampedPose_out.pose;
-
-            // cout<<"ROBOT IN TRACKER "<<endl;
-            // ROS_INFO_STREAM(robot_in_tracker);
-            
-
-            static tf2_ros::StaticTransformBroadcaster static_broadcaster;
-            geometry_msgs::TransformStamped static_transformStamped;
-
-            static_transformStamped.header.stamp = ros::Time::now();
-            static_transformStamped.header.frame_id = "tracker";
-            static_transformStamped.child_frame_id = "robot_frame";
-            static_transformStamped.transform.translation.x = robot_in_tracker.position.x;
-            static_transformStamped.transform.translation.y = robot_in_tracker.position.y;
-            static_transformStamped.transform.translation.z = robot_in_tracker.position.z;
-            // tf2::Quaternion quat;
-            // quat.setRPY(atof(argv[5]), atof(argv[6]), atof(argv[7]));
-            static_transformStamped.transform.rotation.x = 0;
-            static_transformStamped.transform.rotation.y = 0;
-            static_transformStamped.transform.rotation.z = 0;
-            static_transformStamped.transform.rotation.w = 1;
-            static_broadcaster.sendTransform(static_transformStamped);
-        }
-        */
+        
         ros::spinOnce();
 
     }
@@ -485,9 +418,12 @@ int main(int argc, char **argv)
     
 	
     while(n_.ok()){
+    	
+
         PublishToTF();
-        //PublishRobotFrame(centerAndRadiusVect);
+        
         ros::spinOnce();
+
 	}
     
 }

@@ -16,7 +16,22 @@ using namespace std;
 int main(int argc, char **argv)
 {
 ros::init(argc,argv,"main_node");
-ros::NodeHandle n;
+ros::NodeHandle n("~");
+
+bool free;
+    
+auto args=n.getParam("free", free);
+
+cout << free << " "<<args<<endl;
+if(args==0){
+	ROS_INFO_STREAM("Wrong argument passed, please pass correct arg and run again");
+	ROS_INFO_STREAM("correct args are _free:=false _free:=true");
+	return 0;
+
+}
+
+
+
 ros::Rate rate(10);
 std::cout<<"Startted MAIN"<<std::endl;
 Rover *rover=new Rover(&n);
@@ -25,7 +40,12 @@ rover->SetRemote(remote);
 while(ros::ok()){
 	//remote->Execute();
 	//rover->ExecuteIK();
-	rover->ExecuteCMDVEL();
+	if(!free)
+		rover->ExecuteCMDVEL();
+	else{
+		rover->ForwardKinematics();
+		rover->FKVROriginFrame();
+	}
 	//rover->GotoPosition(remote->GetRemoteState());
 	//ROS_INFO_STREAM(remote->GetRemoteState());
 	ros::spinOnce();

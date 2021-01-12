@@ -7,6 +7,9 @@ project(rover)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
+
+
 find_package(catkin REQUIRED COMPONENTS
   
   
@@ -21,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
 
   tf2
   tf2_ros
-  tf2_geometry_msgs
+
 )
 
 
@@ -120,11 +123,12 @@ include_directories(include/rover_manager
 
 
 #add_executable(main_node src/main.cpp)#src/robot_controller.cpp src/sensor.cpp src/order_manager.cpp)
-add_executable(main src/main.cpp src/rover.cpp src/remote.cpp)
+add_executable(main src/main.cpp src/rover.cpp src/remote.cpp   src/tf_tools.cpp)
 
-add_executable(tf_publisher src/tf_publisher.cpp)
+add_executable(tf_publisher src/tf_publisher.cpp src/tf_tools.cpp )
 
-add_executable(robot_frame_publisher src/publishrobotframe.cpp)
+add_executable(follower src/follower.cpp)
+
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -132,7 +136,8 @@ add_dependencies(main  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
 
 add_dependencies(tf_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
 
-add_dependencies(robot_frame_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
+add_dependencies(follower  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
+
 
 ## Specify libraries to link a library or executable target against
   target_link_libraries(main
@@ -147,10 +152,12 @@ add_dependencies(robot_frame_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_E
   )
 
 
-target_link_libraries(robot_frame_publisher
+target_link_libraries(follower
     ${catkin_LIBRARIES}   
     
   )
+
+
 
 #############
 ## Install ##

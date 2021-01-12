@@ -4,6 +4,7 @@
 #include "roboclaw/RoboclawEncoderSteps.h"
 #include "motor_controller/position.h"
 #include "std_msgs/String.h"
+#include "std_msgs/Bool.h"
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/Twist.h"
 #include <sstream>
@@ -12,6 +13,28 @@
 #include "remote.h"
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+
+
+
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Odometry.h>
+#include "geometry_msgs/Pose2D.h"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+
+#include <typeinfo>
+#include <fstream>
+#include <tf/transform_listener.h>
+
+#include <exception>
+
+// #include "helper.h"
+#include "../../src/tf_tools.cpp"
+
+
 class Rover{
 
 	private:
@@ -38,6 +61,8 @@ class Rover{
 		ros::Publisher ForwardKinematicsPositionPublisher;
 		ros::Subscriber inv_kinematics_subscriber;
 		ros::Publisher inv_kinematics_publisher;
+
+		ros::Publisher reset_enc_publisher;
 
 		roboclaw::RoboclawEncoderSteps pose;
 		roboclaw::RoboclawEncoderSteps pose_1;
@@ -74,6 +99,14 @@ class Rover{
 
 		Eigen::Vector3d Y;
 		Eigen::Vector3d D;
+
+		
+		bool FKVROriginFrameflag=true;
+		tf::TransformListener transformListener;
+		double angle_correction_factor=90.0/115.0;
+
+
+		TF *TF_;
 		
 
 	public:
@@ -103,6 +136,17 @@ class Rover{
 	void FK();
 	void InitializeMatrices();
 	void KalmanFilter();
+
+	// geometry_msgs::Pose getInFrame(geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id);
+
+	void FKVROriginFrame();
+
+
+
+
+	
+
+	geometry_msgs::Quaternion EulerToQuaternion(double x,double y,double z);
 
 
 	

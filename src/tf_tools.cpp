@@ -65,7 +65,12 @@ public:
 
 
 
-	void publishFrame(geometry_msgs::PoseStamped poseStamped,string frame_id, std::string parent_frame_id){
+	void publishFrame(geometry_msgs::Pose pose,string frame_id, std::string parent_frame_id){
+
+
+		geometry_msgs::PoseStamped poseStamped;
+		poseStamped.pose=pose;
+
 
 	    geometry_msgs::TransformStamped odom_trans;
 	    odom_trans.header.stamp = ros::Time::now();
@@ -117,6 +122,37 @@ public:
 	    
 
 	    return StampedPose_out.pose;
+	    
+	}
+
+
+
+
+
+
+	geometry_msgs::Pose getFramePose(tf::TransformListener &transformListener,std::string pose_frame_id, std::string op_frame_id){
+
+	    tf::StampedTransform camera_tf_transform_;
+
+	    transformListener.waitForTransform(op_frame_id,pose_frame_id, ros::Time(0),
+	                                             ros::Duration(3));
+
+	    transformListener.lookupTransform(op_frame_id,pose_frame_id, ros::Time(0),
+	                                    camera_tf_transform_);	
+
+	    
+	    geometry_msgs::Pose pose;
+
+	    pose.position.x=camera_tf_transform_.getOrigin().x();
+	    pose.position.y=camera_tf_transform_.getOrigin().y();
+	    pose.position.z=camera_tf_transform_.getOrigin().z();
+
+	    pose.orientation.x=camera_tf_transform_.getRotation().x();
+	    pose.orientation.y=camera_tf_transform_.getRotation().y();
+	    pose.orientation.z=camera_tf_transform_.getRotation().z();
+	    pose.orientation.w=camera_tf_transform_.getRotation().w();
+	    return pose;
+
 	    
 	}
 

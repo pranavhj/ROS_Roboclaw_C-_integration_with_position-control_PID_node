@@ -43,8 +43,15 @@ while(ros::ok()){
 	if(!free)
 		rover->ExecuteCMDVEL();
 	else{
-		rover->ForwardKinematics();
-		rover->FKVROriginFrame();
+
+	 	double start =ros::Time::now().toSec();
+		// rover->ForwardKinematics();
+		// rover->FKVROriginFrame();
+		while(ros::Time::now().toSec()-start<0.2){
+			ros::spinOnce();
+		}
+
+		rover->KalmanFilter();
 	}
 	//rover->GotoPosition(remote->GetRemoteState());
 	//ROS_INFO_STREAM(remote->GetRemoteState());

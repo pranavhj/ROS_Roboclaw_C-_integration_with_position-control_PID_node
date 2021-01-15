@@ -107,7 +107,7 @@ class Rover{
 
 
 		TF *TF_;
-		
+		int kf_counter=0;
 
 	public:
 

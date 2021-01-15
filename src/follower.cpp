@@ -268,25 +268,8 @@ int main(int argc, char **argv)
 
 
 
-
-
-    
-    	
-
-
     	// ROS_INFO_STREAM("EL   ");
     	auto el=QuaterniontoEuler(robotpose.orientation);
-
-    	
-
-    	// std::cout<<el[2]<<" "<<goal_in_origin_2d_dash.theta<<std::endl;
-
-
-
-
-    	
-    	
-
 
 
     	float raw_pid_theta;

@@ -39,7 +39,10 @@ geometry_msgs::PoseStamped headSetPoseStamped;//headSetPoseStamped.pose.orientat
 float CallbackCounter=0;
 float tf_publisher_counter=0;
 
-
+double last_recvd_tracker=0;
+double last_recvd_headset=0;
+double last_recvd_left_controller=0;
+double last_recvd_right_controller=0;
 
 
 TF *TF_;
@@ -56,12 +59,21 @@ TF *TF_;
 
 
 void PublishToTF(){
-   
 
-    TF_->publishFrame(trackerPoseStamped,"tracker","origin");
-    TF_->publishFrame(leftControllerPoseStamped,"left_controller","origin");
-    TF_->publishFrame(rightControllerPoseStamped,"right_controller","origin");
-    TF_->publishFrame(headSetPoseStamped,"headset","origin");
+    ros::spinOnce();
+    auto timenow=ros::Time::now().toSec();
+   
+    if(timenow- last_recvd_tracker<0.1)
+        TF_->publishFrame(trackerPoseStamped.pose,"tracker","origin");
+    
+    if(timenow- last_recvd_left_controller<0.1)
+        TF_->publishFrame(leftControllerPoseStamped.pose,"left_controller","origin");
+    
+    if(timenow- last_recvd_right_controller<0.1) 
+        TF_->publishFrame(rightControllerPoseStamped.pose,"right_controller","origin");
+    
+    if(timenow- last_recvd_headset<0.1)
+        TF_->publishFrame(headSetPoseStamped.pose,"headset","origin");
 
 
 }
@@ -73,6 +85,7 @@ void TrackerCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
  
  // cout<<"Callback "<<CallbackCounter<<endl;
  trackerPoseStamped=*pose;
+ last_recvd_tracker=ros::Time::now().toSec();
  // CallbackCounter++;
 
 }
@@ -82,6 +95,7 @@ void LeftControllerCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
  
  // cout<<"Callback "<<CallbackCounter<<endl;
  leftControllerPoseStamped=*pose;
+ last_recvd_left_controller=ros::Time::now().toSec();
  // CallbackCounter++;
 
 }
@@ -91,6 +105,7 @@ void RightControllerCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
  
  // cout<<"Callback "<<CallbackCounter<<endl;
  rightControllerPoseStamped=*pose;
+ last_recvd_right_controller=ros::Time::now().toSec();
  // CallbackCounter++;
 
 }
@@ -100,6 +115,7 @@ void HeadsetCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
  
  // cout<<"Callback "<<CallbackCounter<<endl;
  headSetPoseStamped=*pose;
+ last_recvd_headset=ros::Time::now().toSec();
  // CallbackCounter++;
 
 }
@@ -188,7 +204,7 @@ void StartTF(){
 
     geometry_msgs::PoseStamped p;
     p.pose=TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1);
-    TF_->publishFrame(p,"base","origin");
+    TF_->PublishStaticTransform("base","origin",p.pose);
  
 }
 

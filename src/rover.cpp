@@ -906,7 +906,7 @@ void Rover::FKVROriginFrame(){
 	// ROS_ERROR_STREAM(Pk_1);
 
 
-	/*try{
+	try{
 		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
 		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
 		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame");
@@ -914,13 +914,14 @@ void Rover::FKVROriginFrame(){
 
 	catch(...){
 		ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
-	}*/
+	}
 
 
 
 	
 	//Update Xn-1 from KF step and update W_prev to current rotations when KF calc
 }
+
 
 
 //Publishes frame robot_frame_KF
@@ -986,11 +987,24 @@ void Rover::KalmanFilter(){
 	
 		
 
+	//do this better
 	robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame" , "/robot_initial_frame");
+	if(EulerDistance(robot_observed_pose,prev_obs_pose)==0){
 	
+		robot_observed_pose=pose_in_robot_initial;
+		return;
+
+	}
+	else{
+		
+	}
+
+	//do this better
+
 	
 
 	auto Y=TF_->PosetoEigenVector3d(robot_observed_pose);
+	prev_obs_pose=robot_observed_pose;
 
 	// std::cout<<"Y "<<Y<<std::endl<<std::endl;
 

@@ -33,7 +33,7 @@
 
 // #include "helper.h"
 #include "../../src/tf_tools.cpp"
-
+#include<cmath>
 
 class Rover{
 
@@ -109,8 +109,10 @@ class Rover{
 		TF *TF_;
 		int kf_counter=0;
 
-		geometry_msgs::Pose lastObsPose;
+		geometry_msgs::Pose lastObsPose,prev_obs_pose;
 		double last_FK_call=0;
+
+
 
 	public:
 
@@ -150,6 +152,14 @@ class Rover{
 	
 
 	geometry_msgs::Quaternion EulerToQuaternion(double x,double y,double z);
+
+
+	double EulerDistance(geometry_msgs::Pose p1,geometry_msgs::Pose p2){
+
+	return double(sqrt(pow((p1.position.x-p2.position.x),2) + pow((p1.position.y-p2.position.y),2) + pow((p1.position.z-p2.position.z),2)));
+
+	}
+
 
 
 	

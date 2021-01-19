@@ -109,6 +109,9 @@ class Rover{
 		TF *TF_;
 		int kf_counter=0;
 
+		geometry_msgs::Pose lastObsPose;
+		double last_FK_call=0;
+
 	public:
 
 	Rover(ros::NodeHandle *n);

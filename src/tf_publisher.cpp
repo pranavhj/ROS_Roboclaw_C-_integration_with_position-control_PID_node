@@ -63,16 +63,16 @@ void PublishToTF(){
     ros::spinOnce();
     auto timenow=ros::Time::now().toSec();
    
-    if(timenow- last_recvd_tracker<0.1)
+    if(timenow- last_recvd_tracker<0.5)
         TF_->publishFrame(trackerPoseStamped.pose,"tracker","origin");
     
-    if(timenow- last_recvd_left_controller<0.1)
+    if(timenow- last_recvd_left_controller<0.5)
         TF_->publishFrame(leftControllerPoseStamped.pose,"left_controller","origin");
     
-    if(timenow- last_recvd_right_controller<0.1) 
+    if(timenow- last_recvd_right_controller<0.5) 
         TF_->publishFrame(rightControllerPoseStamped.pose,"right_controller","origin");
     
-    if(timenow- last_recvd_headset<0.1)
+    if(timenow- last_recvd_headset<0.5)
         TF_->publishFrame(headSetPoseStamped.pose,"headset","origin");
 
 
@@ -257,8 +257,13 @@ void PublishRobotFrame(tf::TransformListener &transformListener,vector<double> c
 
 	    
 
+        double start =ros::Time::now().toSec();
+        
+        while(ros::Time::now().toSec()-start<1){
+            PublishToTF();ros::spinOnce();
+        }
 
-        PublishToTF();PublishToTF();ros::Duration(0.1).sleep();    ros::spinOnce();
+        // PublishToTF();PublishToTF();ros::Duration(0.1).sleep();    ros::spinOnce();PublishToTF();PublishToTF();
         
                 robot_in_tracker=TF_->getInFrame(transformListener,robot_in_origin,"/origin","/tracker");
         

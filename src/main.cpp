@@ -47,11 +47,14 @@ while(ros::ok()){
 	 	double start =ros::Time::now().toSec();
 		// rover->ForwardKinematics();
 		// rover->FKVROriginFrame();
-		while(ros::Time::now().toSec()-start<0.2){
+		/*while(ros::Time::now().toSec()-start<0.09){
 			ros::spinOnce();
-		}
+
+		}*/
 
 		rover->KalmanFilter();
+		
+		ros::spinOnce();
 	}
 	//rover->GotoPosition(remote->GetRemoteState());
 	//ROS_INFO_STREAM(remote->GetRemoteState());

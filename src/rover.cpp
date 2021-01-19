@@ -4,7 +4,10 @@
 
 Rover::Rover(ros::NodeHandle *n){
 	std::cout<<"Before Ini"<<std::endl;
+	last_FK_call=ros::Time::now().toSec();
+
 	InitializeMatrices();
+
 	velocity_publisher=n->advertise<roboclaw::RoboclawMotorVelocity>("/motor_cmd_vel",10);
 	velocity_publisher_1=n->advertise<roboclaw::RoboclawMotorVelocity>("/motor_cmd_vel_1",10);
 	ForwardKinematicsPositionPublisher=n->advertise<geometry_msgs::Pose2D>("/robot_odom_position",10);
@@ -98,16 +101,8 @@ Rover::Rover(ros::NodeHandle *n){
 	    TF_->PublishStaticTransform("/robot_initial_frame", "/origin",robot_pose_in_origin_ini);
 	
 
-
-
 	}
-	
-
-
-
-
-
-	
+		
 }
 
 
@@ -158,9 +153,35 @@ void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_me
 	pose.mot1_enc_steps=pose_message->mot1_enc_steps;
 	pose.mot2_enc_steps=pose_message->mot2_enc_steps;
 	//PIDcontroller(position.position_1,position.position_2);
-	FKVROriginFrame();
+
+	double t =ros::Time::now().toSec();
+	if(t- last_FK_call>0.01){
+		FKVROriginFrame();
+		last_FK_call=t;
+	}
 	
 }
+
+
+
+void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
+	//std::cout<<"pose_1Callback";
+	//ROS_INFO_STREAM(*pose_message);
+	pose_1.index=pose_message->index;
+	pose_1.mot1_enc_steps=pose_message->mot1_enc_steps;
+	pose_1.mot2_enc_steps=pose_message->mot2_enc_steps;
+	double t =ros::Time::now().toSec();
+	if(t- last_FK_call>0.01){
+		FKVROriginFrame();
+		last_FK_call=t;
+	}
+
+	//PIDcontroller(position.position_1,position.position_2);
+	
+
+}
+
+
 
 
 void Rover::CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message){
@@ -171,18 +192,6 @@ void Rover::CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message){
 		
 	//PIDcontroller(position.position_1,position.position_2);
 	
-}
-
-void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
-	//std::cout<<"pose_1Callback";
-	//ROS_INFO_STREAM(*pose_message);
-	pose_1.index=pose_message->index;
-	pose_1.mot1_enc_steps=pose_message->mot1_enc_steps;
-	pose_1.mot2_enc_steps=pose_message->mot2_enc_steps;
-	FKVROriginFrame();
-	//PIDcontroller(position.position_1,position.position_2);
-	
-
 }
 
 void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
@@ -773,9 +782,9 @@ void Rover::InitializeMatrices(){
 	std::cout<<"############### A #############"<<A<<std::endl;
 
 
-	Pk_1(0,0)=0.001;Pk_1(0,1)=0;Pk_1(0,2)=0;
-	Pk_1(1,0)=0;Pk_1(1,1)=0.001;Pk_1(1,2)=0;
-	Pk_1(2,0)=0;Pk_1(2,1)=0;Pk_1(2,2)=0.001;
+	Pk_1(0,0)=0.000001;Pk_1(0,1)=0;Pk_1(0,2)=0;
+	Pk_1(1,0)=0;Pk_1(1,1)=0.000001;Pk_1(1,2)=0;
+	Pk_1(2,0)=0;Pk_1(2,1)=0;Pk_1(2,2)=0.000001;
 
 
 
@@ -795,16 +804,16 @@ void Rover::InitializeMatrices(){
 	std::cout<<"############ M initial #############"<<M<<std::endl;
 
 
-	R<< 0.001, 0, 0,
-		0, 0.001, 0,     /////////////for obs   //being called only 
-		0, 0, 0.001;
+	R<< 0.00001, 0, 0,
+		0, 0.00001, 0,     /////////////for obs   //being called only 
+		0, 0, 0.00001;
 
 	std::cout<<"############ R initial #############"<<R<<std::endl;
 
 
-	Q<< 0.002, 0, 0,
-		0, 0.002, 0,     					// for pred                     
-		0, 0, 0.0001;
+	Q<< 0.00002, 0, 0,
+		0, 0.00002, 0,     					// for pred                     
+		0, 0, 0.00002;
 
 
 	std::cout<<"############ Q initial #############"<<Q<<std::endl;
@@ -892,14 +901,20 @@ void Rover::FKVROriginFrame(){
 
 	Pk_1 = A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();
 
-	try{
+	// std::cout<<X<<std::endl<<std::endl;
+	// ROS_ERROR_STREAM("PREDICTION...");
+	// ROS_ERROR_STREAM(Pk_1);
+
+
+	/*try{
 		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
+		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
 		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame");
 	}
 
 	catch(...){
 		ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
-	}
+	}*/
 
 
 
@@ -921,16 +936,18 @@ void Rover::KalmanFilter(){
 
 	//convert this to origin
 
-	auto pose_in_robot_initial=TF_->ConvertVectorToPose( {double(Xn_1(0)),double(Xn_1(1)),double(Xn_1(2))} );   //in m rad
+	auto pose_in_robot_initial=TF_->ConvertVectorToPose( {double(Xn_1(0)),double(Xn_1(1)),double(Xn_1(2))} );   //in m rad from prediction
+
+	lastObsPose=pose_in_robot_initial;
 
 	// std::cout<<" Prediction pose  "<<Xn_1<<std::endl<<std::endl;
 
-	auto Pkest=A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();             //include transformation in A that happens by tf
+	// auto Pkest=A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();             //include transformation in A that happens by tf
 	// ROS_INFO_STREAM("prediction1 done");
 
 	// std::cout<<Pkest<<std::endl<<std::endl;
 
-	auto K= Pkest* H.transpose()*((H*Pk_1*H.transpose() + R ).inverse());   //M is 1    include transformation in H that happens by tf
+	auto K= Pk_1* H.transpose()*((H*Pk_1*H.transpose() + R ).inverse());   //M is 1    include transformation in H that happens by tf
 	// ROS_INFO_STREAM("Kdone");
 	// std::cout<<K<<std::endl<<std::endl;
 
@@ -965,7 +982,14 @@ void Rover::KalmanFilter(){
 
 
 	//actual obs
-	auto robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame" , "/robot_initial_frame");
+	geometry_msgs::Pose robot_observed_pose;
+	
+		
+
+	robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame" , "/robot_initial_frame");
+	
+	
+
 	auto Y=TF_->PosetoEigenVector3d(robot_observed_pose);
 
 	// std::cout<<"Y "<<Y<<std::endl<<std::endl;
@@ -981,6 +1005,20 @@ void Rover::KalmanFilter(){
 
 	// std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
 	Xn_1=X;
+
+
+	
+
+
+	try{
+		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
+		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
+		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame");
+	}
+
+	catch(...){
+		ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
+	}
 	
 
 
@@ -989,12 +1027,14 @@ void Rover::KalmanFilter(){
 
 
 
-	auto Pmeas=(I3x3-K*H)*Pkest;
+	auto Pmeas=(I3x3-K*H)*Pk_1;
 	// std::cout<<"Pmeas "<<Pmeas<<std::endl<<std::endl;
 
 	Pk_1=Pmeas;
 
-
+	// std::cout<<X<<std::endl<<std::endl;
+	// ROS_ERROR_STREAM("observation...");
+	// ROS_ERROR_STREAM(Pk_1);
 
 	//Here we have X i.e. robot_frame in origin in m rad
 

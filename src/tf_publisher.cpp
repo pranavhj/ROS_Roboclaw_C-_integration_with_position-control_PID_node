@@ -43,7 +43,7 @@ double last_recvd_tracker=0;
 double last_recvd_headset=0;
 double last_recvd_left_controller=0;
 double last_recvd_right_controller=0;
-
+geometry_msgs::Pose robot_in_tracker;
 
 TF *TF_;
 
@@ -236,7 +236,7 @@ void PublishRobotFrame(tf::TransformListener &transformListener,vector<double> c
 	std::string fileName="/home/pranav/catkin_ws/src/rover/src/calibration2.txt";
 	TextData t(fileName);
 
-	geometry_msgs::Pose robot_in_tracker;
+	
 	 if (calibration==true){
 	    
 
@@ -355,7 +355,9 @@ int main(int argc, char **argv)
     ros::Subscriber right_controller_subscriber_ = n_.subscribe("/rightControllerPose", 10000, RightControllerCallback);
     ros::Subscriber headset_subscriber_ = n_.subscribe("/headPose", 10000, HeadsetCallback);
 
-    
+
+    ros::Publisher robot_pose_publisher=n_.advertise<geometry_msgs::Pose>("/robot_pose",10);
+    geometry_msgs::Pose robot_pose_to_publish;
 
 
 
@@ -442,6 +444,14 @@ int main(int argc, char **argv)
     	
 
         PublishToTF();
+        try{
+        	auto robot_in_origin=TF_->getInFrame(transformListener,robot_in_tracker,"/tracker","/origin");
+        	robot_pose_publisher.publish(robot_in_origin);
+        }
+        catch(...){
+
+        }
+        
         
         ros::spinOnce();
 

@@ -40,8 +40,10 @@ rover->SetRemote(remote);
 while(ros::ok()){
 	//remote->Execute();
 	//rover->ExecuteIK();
-	if(!free)
-		rover->ExecuteCMDVEL();
+	if(!free){
+		// rover->ExecuteCMDVEL();
+		rover->ExecuteIK();
+	}
 	else{
 
 	 	double start =ros::Time::now().toSec();

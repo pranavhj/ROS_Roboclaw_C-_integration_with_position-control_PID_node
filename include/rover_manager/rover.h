@@ -133,7 +133,7 @@ class Rover{
 	void PIDcontroller(float goal1,float goal2,float goal3);
 	void ForwardKinematics();
 	void ExecuteIK();
-	float* matrixCalculation(float x, float y, float w);
+	geometry_msgs::Pose matrixCalculation(float x, float y, float w);
 	void IK();
 	geometry_msgs::Pose2D ConvertPosition(geometry_msgs::Pose2D remoteState);
 	void GotoPosition(geometry_msgs::Pose2D remoteState);

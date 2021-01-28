@@ -16,7 +16,7 @@ Rover::Rover(ros::NodeHandle *n){
 
 	
 	pose_subscriber=n->subscribe("/motor_enc",100,&Rover::poseCallback,this);
-	position_subscriber=n->subscribe("/position",100,&Rover::positionCallback,this);     //given by inverse kinema	
+	// position_subscriber=n->subscribe("/position",100,&Rover::positionCallback,this);     //given by inverse kinema	
 	pose_subscriber_1=n->subscribe("/motor_enc_1",10,&Rover::pose_1Callback,this);
 	inv_kinematics_subscriber=n->subscribe("/inv_kinematics",10,&Rover::IKCallback,this);
 	inv_kinematics_publisher=n->advertise<motor_controller::position>("/position",10);
@@ -41,10 +41,10 @@ Rover::Rover(ros::NodeHandle *n){
 	d.data=true;
 	reset_enc_publisher.publish(d);
 	ros::Duration(1.0).sleep();
-	back:
+	//back:
 
 	// try
-	{	
+	/*{	
 		ros::spinOnce();
 		tf::StampedTransform camera_tf_transform_;
 
@@ -101,7 +101,7 @@ Rover::Rover(ros::NodeHandle *n){
 	    TF_->PublishStaticTransform("/robot_initial_frame", "/origin",robot_pose_in_origin_ini);
 	
 
-	}
+	}*/
 		
 }
 
@@ -194,28 +194,29 @@ void Rover::CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message){
 	
 }
 
-void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
-	position.position_1=position_message->position_1;
-	position.position_2=-position_message->position_2;
-	position.position_3=-position_message->position_3;
-	//std::cout<<position.position_1<<"  "<<position.position_2<<"  "<<position.position_3<<std::endl;
-	total_error_1=0;
-	total_error_2=0;
-	total_error_3=0;	
-	//PIDcontroller(position.position_1,position.position_2);
+// void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
+// 	position.position_1=position_message->position_1;
+// 	position.position_2=-position_message->position_2;
+// 	position.position_3=-position_message->position_3;
+// 	//std::cout<<position.position_1<<"  "<<position.position_2<<"  "<<position.position_3<<std::endl;
+// 	total_error_1=0;
+// 	total_error_2=0;
+// 	total_error_3=0;	
+// 	//PIDcontroller(position.position_1,position.position_2);
 	
 	
 
-}
+// }
 
 
 void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message){   
 	//IKpose=*(pose_message);
-	IKpose.x+=(pose_message->x/5000);
-	IKpose.y+=(pose_message->y/5000);
-	IKpose.theta+=(pose_message->theta/300);
+	IKpose.x=(pose_message->x);
+	IKpose.y=(pose_message->y);
+	IKpose.theta=(pose_message->theta);         /////////////Is in deg
 	
-	//std::cout<<"IKCallback"<<std::endl;
+	std::cout<<"IKCallback"<<std::endl;
+	ROS_INFO_STREAM(IKpose);
 }
 
 
@@ -225,26 +226,32 @@ void Rover::IK(){              //takes IK pose and converts to position values
 	float x=IKpose.x;
     float y=IKpose.y;
     float w=IKpose.theta;
+    // std::cout<<"xyw "<<x<<" "<<y<<" "<<w<<std::endl;
     
-	w=w*3.14159/180;
-    float *targets=matrixCalculation(x,y,w);
-
-    motor_controller::position position;
-    position.position_1=int(*(targets));
-    position.position_2=int(*(targets+1));
-    position.position_3=int(*(targets+2));//angle in deg
-    inv_kinematics_publisher.publish(position);
+	// w=w*3.14159/180;
+    auto p1=matrixCalculation(x,y,w);
+    // std::cout<<"Targets:"<<p1.position.x<<" "<<p1.position.y<<" "<<p1.position.z<<std::endl;
+    position.position_1=int(p1.position.x);
+    position.position_2=int(p1.position.y);
+    position.position_3=int(p1.position.z);//angle in deg
+    // inv_kinematics_publisher.publish(position);
     //cout<<"Published"<<endl;
-    //ROS_INFO_STREAM(position);
+    // ROS_INFO_STREAM("IN IK");
+    // ROS_INFO_STREAM(position);
     
 }
 
 
 void Rover::ExecuteIK(){
 	//std::cout<<position.position_1<<"    "<<position.position_2<<"  "<<position.position_3<<std::endl;
-	IK();
+
 	//cout<<"Start"<<endl;
 	//ROS_INFO_STREAM(position);
+
+	// std::cout<<"Posns:"<<position.position_1<<position.position_2<<position.position_3<<std::endl;
+	// ROS_INFO_STREAM(IKpose);
+	IK();
+
 	PIDcontroller(position.position_1,position.position_2,position.position_3);
 	//cout<<"End"<<endl;
 
@@ -328,13 +335,13 @@ void Rover::ExecuteCMDVEL(){
 		
 		
 	prevState=finalState;
-	float *targets=matrixCalculation(finalState.x,finalState.y,finalState.theta);
+	auto p1=matrixCalculation(finalState.x,finalState.y,finalState.theta);
 	
 	//ROS_INFO_STREAM(finalState);
 	//std::cout<<*targets<<" "<<*(targets+1)<<" "<<*(targets+2)<<std::endl;
-	auto speed=*targets;//pos1/=10000;
-	auto speed1=*(targets+1);//pos2/=10000;
-	auto speed2=*(targets+2);//pos3/=10000;
+	auto speed=p1.position.x;//pos1/=10000;
+	auto speed1=p1.position.y;//pos2/=10000;
+	auto speed2=p1.position.z;//pos3/=10000;
 	
 	ros::spinOnce();
 	ForwardKinematics();
@@ -448,13 +455,14 @@ void Rover::GotoPosition(geometry_msgs::Pose2D remoteState){/////////////remote 
 
 
 	prevState=finalState;
-	float *targets=matrixCalculation(finalState.x,finalState.y,finalState.theta);
+	
+	auto p1=matrixCalculation(finalState.x,finalState.y,finalState.theta);
 	
 	ROS_INFO_STREAM(finalState);
 	//std::cout<<*targets<<" "<<*(targets+1)<<" "<<*(targets+2)<<std::endl;
-	auto speed=*targets;//pos1/=10000;
-	auto speed1=*(targets+1);//pos2/=10000;
-	auto speed2=*(targets+2);//pos3/=10000;
+	auto speed=p1.position.x;//pos1/=10000;
+	auto speed1=p1.position.y;//pos2/=10000;
+	auto speed2=p1.position.z;//pos3/=10000;
 	
 	ros::spinOnce();
 	ForwardKinematics();
@@ -504,17 +512,21 @@ void Rover::GotoPosition(geometry_msgs::Pose2D remoteState){/////////////remote 
 
 
 void Rover::PIDcontroller(float goal, float goal1,float goal2){
+	IK();
 	roboclaw::RoboclawMotorVelocity vel_msg_; 
 	roboclaw::RoboclawMotorVelocity vel_msg_1;
 	vel_msg_.index=0;
 	vel_msg_1.index=0;
+	// ROS_INFO_STREAM("IN PID");
+	// ROS_INFO_STREAM(position);
+
 	goal=position.position_1;
 	goal1=position.position_2;
 	goal2=position.position_3;
 	float e_current=goal-float(pose.mot1_enc_steps);
 	float e_current_1=goal1-float(pose_1.mot2_enc_steps);
 	float e_current_2=goal2-float(pose.mot2_enc_steps);
-
+	// std::cout<<"IN PID "<<goal<<" "<<goal1<<" "<<goal2<<endl;
 
 	while((abs((goal)-(float(pose.mot1_enc_steps)))>10.0        ||    abs((goal1)-(float(pose_1.mot2_enc_steps)))>10.0    ||   abs((goal2)-(float(pose.mot2_enc_steps)))>10.0)  &&   ros::ok() )
 		{
@@ -1081,7 +1093,7 @@ void Rover::KalmanFilter(){
 
 
 
-float* Rover::matrixCalculation(float x, float y, float w)
+geometry_msgs::Pose Rover::matrixCalculation(float x, float y, float w)           //////Inv Kinematics calculation function for rover
 {    float body_twist;
     float body_velocity_x;
     float body_velocity_y;
@@ -1098,12 +1110,15 @@ float* Rover::matrixCalculation(float x, float y, float w)
     motor_angVel_1 = ((-1*wheel_distance*body_twist) + body_velocity_x)/wheel_radius;
     motor_angVel_2 = ((-1*wheel_distance*body_twist) - (0.5*body_velocity_x) - (0.866*body_velocity_y))/wheel_radius;
     motor_angVel_3 = ((-1*wheel_distance*body_twist) - (0.5*body_velocity_x) + (0.866*body_velocity_y))/wheel_radius;
-    targets[0]=(motor_angVel_1)*180/3.14159*2400/360;
-    targets[1]=(motor_angVel_2)*180/3.14159*2400/360;
-    targets[2]=(motor_angVel_3)*180/3.14159*2400/360;
-    return &targets[0];    
+    	
+	geometry_msgs::Pose p;
+
+
+    p.position.x=(motor_angVel_1)*180/3.14159*2400/360;
+    p.position.y=(motor_angVel_2)*180/3.14159*2400/360;
+    p.position.z=(motor_angVel_3)*180/3.14159*2400/360;
+
+
+    return p;
 }
-
-
-
 

@@ -28,9 +28,9 @@ tf2_ros::TransformBroadcaster *odom_broadcaster;
 geometry_msgs::Pose2D goal_in_origin_2d;
 geometry_msgs::Pose2D goal_in_origin_2d_dash;
 
-float kp_x_=0.6*1000,ki_x_=0,kd_x_=0,prev_error_x_=0,total_error_x_=0;
+float kp_x_=0.3*1000,ki_x_=0,kd_x_=0,prev_error_x_=0,total_error_x_=0;
 float kp_theta_=0.0080,ki_theta_=0.00000,kd_theta_=0.002,prev_error_theta_=0,total_error_theta_=0;
-float kp_y_=0.6*1000,ki_y_=0,kd_y_=0,prev_error_y_=0,total_error_y_=0;
+float kp_y_=0.3*1000,ki_y_=0,kd_y_=0,prev_error_y_=0,total_error_y_=0;
 
 
 using namespace std;

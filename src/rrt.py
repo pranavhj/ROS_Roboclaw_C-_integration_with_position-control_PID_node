@@ -187,7 +187,9 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
             point_neighbour_=Nodes_list_nearest_[index]
             point_.cost=point_neighbour_.cost+euler_dist(point_,point_neighbour_)
             
-            
+            for cir in Maze_eqns:
+                if euler_dist(goal_,Node([cir[0],cir[1]]))<robot_radius+100:
+                    return None
             
             
 
@@ -218,6 +220,11 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
         maze_solved_time=time.time()
         # print("counter:",counter)
         # print("time taken to solve maze: ",maze_solved_time- start_time)
+
+    elif time.time()-start_time>4:
+        print("Time exceded to solver")
+        flag=0
+        return []
 
     else:
         print("Could not solve")

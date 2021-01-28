@@ -39,9 +39,14 @@ class Planner():
 
 
         self.saftey_distance_for_controller=400    #is radius
-
+        self.block_dimensions=[3200,3200]
         self.Maze_eqns=[(000,000,self.saftey_distance_for_controller)]  # x y r of obstacle
-        self.Maze=MazeMaker(10,[10000,10000],self.Maze_eqns)
+        self.Maze=MazeMaker(10,[self.block_dimensions[0],self.block_dimensions[0]],self.Maze_eqns)
+
+        
+
+        self.empty_maze=np.zeros( (int(self.block_dimensions[0]/self.threshold)+3,int(self.block_dimensions[1]/self.threshold)+3,3), np.uint8 )
+    
 
 
         self.pose_list=[]
@@ -62,6 +67,11 @@ class Planner():
         self.robot_pose_subscriber=rospy.Subscriber("/robot_pose", Pose, self.RobotPosecallback)
 
 
+        self.PlannerGoalSubscriber=rospy.Subscriber("/planner_goal", Pose2D, self.PlannerGoalCallback)
+
+        self.goal_pose_publisher=rospy.Publisher('/goal_pose',Pose2D,queue_size=100)
+
+
         f = open(r"calibration2.txt", "r")
         transformation_tracker_robot_str=(f.read())
         transformation_tracker_robot_str=transformation_tracker_robot_str[1:]
@@ -73,6 +83,12 @@ class Planner():
             self.transformation_tracker_robot.append(float(s))
 
         # print(transformation_tracker_robot)
+
+
+
+
+        self.upperline=None
+        self.lowerline=None
         
        
         
@@ -350,19 +366,32 @@ class Planner():
         print("THREAD ENDED")
 
 
-    
+    def euler_to_quaternion(self, yaw, pitch, roll):
+
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        return [qx, qy, qz, qw]
 
 
     
 
 
 
-    def odom_callback(self,message):
+    def PlannerGoalCallback(self,message):
         #get_caller_id(): Get fully resolved name of local node
         #rospy.loginfo(rospy.get_caller_id() + "I heard %s")#, message.data)
         
 
         self.goal_change=True
+        quat=self.euler_to_quaternion(0,0,0)
+        self.goal_pose=[(message.x,message.y,1),( quat[0],quat[1],quat[2],quat[3])]
+
+        print("GOAL POSE CHANGED")
+
+
         
         ##############
 
@@ -388,16 +417,16 @@ class Planner():
         x=robot_pose[0][0]
         y=robot_pose[0][1]
 
-        return (5000+(x*1000), 5000+ (-y*1000))
+        return ((self.block_dimensions[0]/2)+(x*1000), (self.block_dimensions[1]/2)+ (-y*1000))
 
 
 
-    def ConvertMapCoordinatesToPose(self,robot_pose):
+    def ConvertMapCoordinatesToPose(self,robot_pose_map):    #############  robot_pose in map
         # print("In convert ",robot_pose)
-        x=robot_pose[0]
-        y=robot_pose[0]
-        x_dash=((x-5000)/1000)  
-        y_dash=(-y+5000)/1000
+        x=robot_pose_map[0]
+        y=robot_pose_map[1]
+        x_dash=((x-(self.block_dimensions[0]/2))/1000.0)  
+        y_dash=(-y+(self.block_dimensions[1]/2))/1000.0
 
         p=Pose2D()
 
@@ -407,7 +436,77 @@ class Planner():
         ###############Give angle as heading angle
 
 
-        return 
+        return p
+
+    def pathinObstacleFastmine(self,point_,point_neighbour_,Maze_eqns,r ):  #Mazeeqns has [(xc,yc,R)] r in robot radius
+        [x1,y1]=point_.co_ord
+        [x2,y2]=point_neighbour_.co_ord
+        
+        if x1>x2   and x1-x2!=0:       ########smaller x2 bigger x1
+            [x1,y1,x2,y2]=[x2,y2,x1,y1]
+
+        for cir in Maze_eqns:
+            xc,yc,R=cir
+            
+            # print(xc,yc,R)
+            #### checking center line
+            ans=checkCollision(x1,y1,x2,y2,xc,yc,R)
+            if ans==True:
+                return True
+
+
+            # print("Not in center")
+
+            
+            if x2!=x1:
+                # print("not eq")
+                tantheta=(y2-y1)/(x2-x1)
+                theta=np.arctan2(tantheta,1)
+
+                # print("th:",theta)
+                upperline=(x1-(r*np.sin(theta)),  y1+(r*np.cos(theta))  ,   x2-(r*np.sin(theta)),  y2+(r*np.cos(theta)) )
+                #x1 y1 x2 y2
+                self.upperline=upperline
+                # print("upp line is",upperline)
+                nx1, ny1, nx2, ny2=upperline
+                ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
+                if ans==True:
+                    return True
+
+
+
+
+                lowerline=(x1+(r*np.sin(theta)),  y1-(r*np.cos(theta))  ,   x2+(r*np.sin(theta)),  y2-(r*np.cos(theta)) )
+                self.lowerline=lowerline
+                #x1 y1 x2 y2
+                nx1, ny1, nx2, ny2=lowerline
+                ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
+                if ans==True:
+                    return True
+
+            else:
+
+                nx1,ny1,nx2,ny2= x1-r, y1, x2-r, y2
+                self.upperline=(nx1,ny1,nx2,ny2)
+                ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
+                if ans==True:
+                    return True
+
+
+                nx1,ny1,nx2,ny2= x1+r, y1, x2+r, y2
+                self.lowerline=(nx1,ny1,nx2,ny2)
+                ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
+                if ans==True:
+                    return True
+
+
+
+
+
+
+        return False
+
+
 
 
     def CheckObstruction(self,current_index):
@@ -419,9 +518,18 @@ class Planner():
             p2=self.pose_list[i]
             point_=Node([p1[0],p1[1]])
             point_neighbour_=Node([p2[0],p2[1]])
-            obs = pathinObstacleFast(point_,point_neighbour_,self.Maze_eqns,self.robot_radius )
+            obs = self.pathinObstacleFastmine(point_,point_neighbour_,self.Maze_eqns,self.robot_radius )
+
             if obs==True:
                 return True
+
+
+        current_goal_node_=Node([self.pose_list[self.current_index][0] , self.pose_list[self.current_index][1] ])
+        robot_pose_map=self.ConvertPoseToMapCoordinates(self.robot_pose)
+        robot_pose_=Node([robot_pose_map[0],robot_pose_map[1]])
+        obs = self.pathinObstacleFastmine(current_goal_node_,robot_pose_,self.Maze_eqns,self.robot_radius )
+        if obs==True:
+            return True
 
         return False
 
@@ -446,13 +554,17 @@ class Planner():
         d= np.abs( (a*x)+ (b*y) + c )/np.sqrt(a**2 + b**2)
 
 
-        print("abc is ",a,b,c, "normal dis is ",d)
+        # print("abc is ",a,b,c, "normal dis is ",d)
 
         return d
 
     def drawingThread(self,threadName,delay):
         while True:
-
+            self.Maze=copy.copy(self.empty_maze )
+            # print("DRAWING@@@@@@@@")
+            for cir in self.Maze_eqns:
+                cv2.circle(self.Maze,(int(cir[0]/self.threshold),int(cir[1]/self.threshold)),int(cir[2]/self.threshold),(255,255,255),-1)
+            
             robot_pose_map=self.ConvertPoseToMapCoordinates(self.robot_pose)
 
 
@@ -477,12 +589,12 @@ class Planner():
             eul=self.quaternion_to_euler(self.robot_pose[1][0],self.robot_pose[1][1],self.robot_pose[1][2],self.robot_pose[1][3])
             # print(eul)
             theta=eul[0]*3.14159/180.0
-            headingXx=int(robot_pose_map[0] + 1000*np.cos(theta))
-            headingXy=int(robot_pose_map[1] + 1000*np.sin(theta))
+            headingYx=int(robot_pose_map[0] - 1000*np.cos(theta))
+            headingYy=int(robot_pose_map[1] - 1000*np.sin(theta))
 
 
-            headingYx=int(robot_pose_map[0] + 1000*np.sin(theta))
-            headingYy=int(robot_pose_map[1] - 1000*np.cos(theta))
+            headingXx=int(robot_pose_map[0] + 1000*np.sin(theta))
+            headingXy=int(robot_pose_map[1] - 1000*np.cos(theta))
 
             # print(robot_pose_map, headingXx,headingXy,headingYx,headingYy,theta)
 
@@ -497,15 +609,31 @@ class Planner():
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingXx/self.threshold),int(headingXy/self.threshold) ) ,(0,0,255),10)
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingYx/self.threshold),int(headingYy/self.threshold) ) ,(255,0,0),10)
 
-
-
-
-
-            for p in range(self.current_index-1,len(self.pose_list)-1):
-                # print((int(pose_list[p][0]/threshold),int(pose_list[p][1]/threshold))  ,(int(pose_list[p+1][0]/threshold),int(pose_list[p+1][1]/threshold)))
-                cv2.line(self.Maze,(int(self.pose_list[p][0]/self.threshold),int(self.pose_list[p][1]/self.threshold))  ,(int(self.pose_list[p+1][0]/self.threshold),int(self.pose_list[p+1][1]/self.threshold)) ,(250,0,255),10)
-
             
+
+
+            try:
+                for p in range(self.current_index-1,len(self.pose_list)-1):
+                    # print((int(pose_list[p][0]/threshold),int(pose_list[p][1]/threshold))  ,(int(pose_list[p+1][0]/threshold),int(pose_list[p+1][1]/threshold)))
+                    cv2.line(self.Maze,(int(self.pose_list[p][0]/self.threshold),int(self.pose_list[p][1]/self.threshold))  ,(int(self.pose_list[p+1][0]/self.threshold),int(self.pose_list[p+1][1]/self.threshold)) ,(250,0,255),10)
+
+
+                if len(self.pose_list)>0:
+                    current_goal=self.pose_list[self.current_index]
+                    # print("@@@@@@@@@",current_goal)
+                    cv2.circle(self.Maze,(int(current_goal[0]/self.threshold),int(current_goal[1]/self.threshold)),int(100/self.threshold), (0,0,255),-1 )
+
+                if self.upperline is not None:
+                    x1,y1,x2,y2=self.upperline
+                    # print("@@@@ Drawing ",self.upperline)
+                    cv2.line(self.Maze,(int(x1/self.threshold),int(y1/self.threshold))  ,(int(x2/self.threshold),int(y2/self.threshold) ) ,(255,255,255),10)
+                
+                if self.lowerline is not None:
+                    x1,y1,x2,y2=self.lowerline
+                    # print("@@@@ Drawing ",self.lowerline)
+                    cv2.line(self.Maze,(int(x1/self.threshold),int(y1/self.threshold))  ,(int(x2/self.threshold),int(y2/self.threshold) ) ,(255,255,255),10)
+            except:
+                pass    
 
         print("Drawing THREAD ENDED")
 
@@ -516,26 +644,38 @@ class Planner():
 
         # thread.start_new_thread(self.UpdatePosesThread,("thread1",0) )
         self.current_index=0
-       
+        
+        no_robot_pose_printed=False
+        no_lc_pose_printed=False
+        no_rc_pose_printed=False
 
         while True:
             pass
             # Get robot pose and controller pose
 
-           
+            
 
 
             if self.robot_pose is None:
                 # print("robot pose is None")
+                if no_robot_pose_printed==False:
+                    print("Not getting robot pose")
+                    no_robot_pose_printed=True
                 rospy.sleep(0.02)
                 continue
 
             if self.lc_pose is None:
                 # print("lc pose is None")
+                if no_lc_pose_printed==False:
+                    print("Not getting lc pose")
+                    no_lc_pose_printed=True
                 rospy.sleep(0.02)
                 continue
 
             if self.rc_pose is None:
+                if no_rc_pose_printed==False:
+                    print("Not getting rc pose")
+                    no_rc_pose_printed=True
                 rospy.sleep(0.02)
                 self.rc_pose=([0,0,0],[0,0,0,1])
 
@@ -548,9 +688,7 @@ class Planner():
             ##############################       remapping update only over here
 
 
-            if self.drawingThreadStarted==False:
-                thread.start_new_thread(self.drawingThread,("drawingthread1",0) )
-                self.drawingThreadStarted=True
+            
 
 
             #update Maze and Maze_eqns accordingly  
@@ -565,27 +703,49 @@ class Planner():
             
 
             self.Maze_eqns=[(left_controller_pose_map[0],left_controller_pose_map[1],self.saftey_distance_for_controller)]
-            self.Maze=MazeMaker(10,[10000,10000],self.Maze_eqns)
             
 
 
-            print("Map update done:",self.current_index, self.robot_pose)
+            ############# print("Map update done:",self.current_index, self.robot_pose)
 
 
-            
+            resizedMaze=cv2.resize(self.Maze,(300,300),interpolation = cv2.INTER_AREA)
+            cv2.imshow("mazePlanner",resizedMaze)
+
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                    break
 
             #  Publish current robot pose to robot so that it stopos while remapping in progress
             #  maybe only give if obstruction far ahead
 
             if len(self.pose_list)==0   or   self.detectGoalchange()    or    self.NormalDistance(robot_pose_map,self.current_index)>self.robot_radius:
-                
-                print("Finding Path from ",[robot_pose_map[0],robot_pose_map[1]], " to this ",[goal_pose_map[0],goal_pose_map[1]]) 
-                
-                if self.EulerDistance(goal_pose_map,left_controller_pose_map)>self.robot_radius:
-                    self.pose_list=RRT(self.Maze,self.Maze_eqns,[robot_pose_map[0],robot_pose_map[1]],[goal_pose_map[0],goal_pose_map[1]],800,800,10,[10000,10000],400)
+                print("############  remapping   ##########")
+                rospy.sleep(0.2)
+                goal_pose_map=self.ConvertPoseToMapCoordinates(self.goal_pose)
+                print("########## NEW GOAL IS #######",goal_pose_map)
+                print("Finding Path from ",[robot_pose_map[0],robot_pose_map[1]], " to this ",[goal_pose_map[0],goal_pose_map[1]], "eul is ",self.EulerDistance(goal_pose_map,left_controller_pose_map)) 
+                print("LC is at ",left_controller_pose_map)
+                if self.EulerDistance(goal_pose_map,left_controller_pose_map)>self.robot_radius+self.Maze_eqns[0][2]:
+                    self.pose_list=RRT(self.Maze,self.Maze_eqns,[robot_pose_map[0],robot_pose_map[1]],[goal_pose_map[0],goal_pose_map[1]],800*2,800*2,10,self.block_dimensions,400)
+                    print("New POSE lIST is ",self.pose_list)
+                    if self.pose_list is None:
+                        print("Cannot do path planning, obstacle very near goal ")
+                        self.pose_list=[]
+                        # cv2.destroyAllWindows()
+                        continue
+
+                    elif self.pose_list==[]:
+                        print("Time exceded ")
+                        self.pose_list=[]
+                        # cv2.destroyAllWindows()
+                        continue
+
+
+
                 else:
                     print("Cannot do path planning, obstacle very near goal")
                     pose_list=[]
+                    # cv2.destroyAllWindows()
                     continue
 
 
@@ -604,23 +764,37 @@ class Planner():
                     continue
 
                 
-            print("Distance away from current_index ",self.EulerDistance(robot_pose_map,self.pose_list[self.current_index]))
+            
+            if self.drawingThreadStarted==False:
+                thread.start_new_thread(self.drawingThread,("drawingthread1",0) )
+                self.drawingThreadStarted=True
+
+
+            # ###################print("Distance away from current_index ",self.EulerDistance(robot_pose_map,self.pose_list[self.current_index]))
 
             if self.EulerDistance(robot_pose_map,self.pose_list[self.current_index])<300 and self.current_index!=len(self.pose_list)-1:
                 self.current_index+=1
+                print("Current current_index is ",self.current_index)
 
 
-            if(EulerDistance(robot_pose_map,self.pose_list[self.current_index])<robot_radius):
-                Publish(self.pose_list[self.current_index])
+
+            obs_map=self.Maze_eqns[0][0],self.Maze_eqns[0][1]
+            # checking if far away from obs
+            if(self.EulerDistance(robot_pose_map, obs_map) > (self.robot_radius/2) + (self.saftey_distance_for_controller/2) ):
+                # Publish(self.pose_list[self.current_index])
+                # print("Publishing this ",self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
+                self.goal_pose_publisher.publish(self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
+
+
+                pass
 
             else:
-                Publish(robot_pose)
+                print("Obs very close, publishing current pose")
+                # Publish(robot_pose)
+                self.goal_pose_publisher.publish(self.ConvertMapCoordinatesToPose(robot_pose_map))
+                pass
 
-            resizedMaze=cv2.resize(self.Maze,(300,300),interpolation = cv2.INTER_AREA)
-            cv2.imshow("mazePlanner",resizedMaze)
-
-            if cv2.waitKey(10) & 0xFF == ord('q'):
-                    break
+            
 
             rospy.sleep(0.0002)
 

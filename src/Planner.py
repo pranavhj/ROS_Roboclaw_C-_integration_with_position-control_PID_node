@@ -761,6 +761,10 @@ class Planner():
                 if obstruction==True:
                     print("obstruction found")
                     self.pose_list=[]
+                    print("Obs very close, publishing current pose")
+                    # Publish(robot_pose)
+                    self.goal_pose_publisher.publish(self.ConvertMapCoordinatesToPose(robot_pose_map))
+                    pass
                     continue
 
                 
@@ -783,7 +787,23 @@ class Planner():
             if(self.EulerDistance(robot_pose_map, obs_map) > (self.robot_radius/2) + (self.saftey_distance_for_controller/2) ):
                 # Publish(self.pose_list[self.current_index])
                 # print("Publishing this ",self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
-                self.goal_pose_publisher.publish(self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
+                gp=self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index])
+                # x1,y1=self.pose_list[self.current_index-1]
+                # x2,y2=self.pose_list[self.current_index]
+                # tantheta=None
+                # theta=0.0
+                # if x1!=x2:
+                #     tantheta=(y2-y1)/(x2-x1)
+                #     theta=np.arctan2(tantheta,1)
+                #     theta=theta*180/3.142
+                # else:
+                #     tantheta=90.0
+                #     theta=90
+
+                # gp.theta=theta+90
+                self.goal_pose_publisher.publish(gp)
+                
+
 
 
                 pass

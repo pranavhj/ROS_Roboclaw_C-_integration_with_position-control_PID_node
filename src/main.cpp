@@ -41,8 +41,8 @@ while(ros::ok()){
 	//remote->Execute();
 	//rover->ExecuteIK();
 	if(!free){
-		// rover->ExecuteCMDVEL();
-		rover->ExecuteIK();
+		rover->ExecuteCMDVELNoInterpolation();
+		// rover->ExecuteIK();
 	}
 	else{
 

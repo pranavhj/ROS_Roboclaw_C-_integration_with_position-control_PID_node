@@ -67,7 +67,7 @@ class Rover{
 		roboclaw::RoboclawEncoderSteps pose;
 		roboclaw::RoboclawEncoderSteps pose_1;
 		motor_controller::position position;
-		float full_speed=5000;
+		float full_speed=2000;
 		geometry_msgs::Pose2D FKPose;
 		ros::NodeHandle n;
 		geometry_msgs::Pose2D IKpose;
@@ -126,6 +126,8 @@ class Rover{
 	
 	
 	void ExecuteCMDVEL();
+	void ExecuteCMDVELNoInterpolation();
+
 	void SetRemote(Remote *c){remote=c;}
 
 

@@ -33,7 +33,7 @@ if(args==0){
 
 
 ros::Rate rate(10);
-std::cout<<"Startted MAIN"<<std::endl;
+std::cout<<"Started MAIN"<<std::endl;
 Rover *rover=new Rover(&n);
 Remote *remote=new Remote(&n);
 rover->SetRemote(remote);

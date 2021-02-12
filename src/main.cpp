@@ -41,8 +41,12 @@ while(ros::ok()){
 	//remote->Execute();
 	//rover->ExecuteIK();
 	if(!free){
-		rover->ExecuteCMDVELNoInterpolation();
-		// rover->ExecuteIK();
+		//rover->ExecuteCMDVELNoInterpolation();
+		rover->KalmanFilter();
+		rover->ExecuteIKOnlySpeed();
+
+		// auto w=rover->GetEncoderPosnsFromTF();
+		// ROS_INFO_STREAM(w);
 	}
 	else{
 

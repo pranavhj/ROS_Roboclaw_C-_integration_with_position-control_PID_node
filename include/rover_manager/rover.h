@@ -133,7 +133,12 @@ class Rover{
 
 
 	void PIDcontroller(float goal1,float goal2,float goal3);
+	void PIDControllerOnlySpeed(float goal,float goal1, float goal2);
+	geometry_msgs::Pose GetEncoderPosnsFromTF();
+	void ExecuteIKOnlySpeed();
+
 	void ForwardKinematics();
+	void ForwardKinematics(float w1,float w2,float w3);
 	void ExecuteIK();
 	geometry_msgs::Pose matrixCalculation(float x, float y, float w);
 	void IK();

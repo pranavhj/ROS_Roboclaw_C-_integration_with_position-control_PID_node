@@ -690,7 +690,7 @@ class Planner():
 
             
 
-
+            rospy.sleep(0.0002)
             #update Maze and Maze_eqns accordingly  
             robot_pose_map=self.ConvertPoseToMapCoordinates(self.robot_pose)
             

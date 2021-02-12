@@ -22,6 +22,10 @@ class Node():
         self.obstacle=None
         self.cost=0
         self.cost_togo=0
+
+
+
+
 def findDistance(p1,p2):
     return np.sqrt(np.square(p1.co_ord[0]-p2.co_ord[0])+np.square(p1.co_ord[1]-p2.co_ord[1]))
 
@@ -129,7 +133,9 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
     counter=0
     flag=0
     start_.cost=0
-    radius=delta+20
+    # radius=delta+20
+    radius=robot_radius
+
     print("algo started")
 
     start_time=time.time()
@@ -173,19 +179,19 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
              ###################################
             #    RRT* for next comment block
             #######################################    
-            costs=[]
-            Nodes_list_nearest_=FindNeighbourswithDistance(Nodes,point_,radius)
-            #print(len(Nodes_list_nearest_))
-            for n_ in Nodes_list_nearest_:
-                costs.append(n_.cost+euler_dist(n_,point_))
+            # costs=[]
+            # Nodes_list_nearest_=FindNeighbourswithDistance(Nodes,point_,radius)
+            # #print(len(Nodes_list_nearest_))
+            # for n_ in Nodes_list_nearest_:
+            #     costs.append(n_.cost+euler_dist(n_,point_))
             
-            min_cost=min(costs)
-            index=costs.index(min_cost)
-            #point_neighbour_dash_=Nodes_list_nearest_[index]
+            # min_cost=min(costs)
+            # index=costs.index(min_cost)
+            # #point_neighbour_dash_=Nodes_list_nearest_[index]
             
                 
-            point_neighbour_=Nodes_list_nearest_[index]
-            point_.cost=point_neighbour_.cost+euler_dist(point_,point_neighbour_)
+            # point_neighbour_=Nodes_list_nearest_[index]
+            # point_.cost=point_neighbour_.cost+euler_dist(point_,point_neighbour_)
             
             for cir in Maze_eqns:
                 if euler_dist(goal_,Node([cir[0],cir[1]]))<robot_radius+100:
@@ -276,7 +282,7 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
     #         break
     
     # plt.show()
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
     print("RRT DONE")
 
     return path_optimized_co_ord
@@ -510,20 +516,26 @@ def pathinObstacleFast(point_,point_neighbour_,Maze_eqns,r ):  #Mazeeqns has [(x
     for cir in Maze_eqns:
         xc,yc,R=cir
         
-       
+        # print(xc,yc,R)
         #### checking center line
         ans=checkCollision(x1,y1,x2,y2,xc,yc,R)
         if ans==True:
             return True
 
+
+        # print("Not in center")
+
         
         if x2!=x1:
+            # print("not eq")
             tantheta=(y2-y1)/(x2-x1)
             theta=np.arctan2(tantheta,1)
 
-
+            # print("th:",theta)
             upperline=(x1-(r*np.sin(theta)),  y1+(r*np.cos(theta))  ,   x2-(r*np.sin(theta)),  y2+(r*np.cos(theta)) )
             #x1 y1 x2 y2
+            upperline=upperline
+            # print("upp line is",upperline)
             nx1, ny1, nx2, ny2=upperline
             ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
             if ans==True:
@@ -533,6 +545,7 @@ def pathinObstacleFast(point_,point_neighbour_,Maze_eqns,r ):  #Mazeeqns has [(x
 
 
             lowerline=(x1+(r*np.sin(theta)),  y1-(r*np.cos(theta))  ,   x2+(r*np.sin(theta)),  y2-(r*np.cos(theta)) )
+            lowerline=lowerline
             #x1 y1 x2 y2
             nx1, ny1, nx2, ny2=lowerline
             ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
@@ -542,12 +555,14 @@ def pathinObstacleFast(point_,point_neighbour_,Maze_eqns,r ):  #Mazeeqns has [(x
         else:
 
             nx1,ny1,nx2,ny2= x1-r, y1, x2-r, y2
+            upperline=(nx1,ny1,nx2,ny2)
             ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
             if ans==True:
                 return True
 
 
             nx1,ny1,nx2,ny2= x1+r, y1, x2+r, y2
+            lowerline=(nx1,ny1,nx2,ny2)
             ans=checkCollision(nx1,ny1,nx2,ny2,xc,yc,R)
             if ans==True:
                 return True
@@ -557,14 +572,6 @@ def pathinObstacleFast(point_,point_neighbour_,Maze_eqns,r ):  #Mazeeqns has [(x
 
 
 
-    return False
-
-
-  
-    
-        
-        
-            
     return False
 
 
@@ -655,13 +662,17 @@ def checkCollision(x1,y1,x2,y2, p, q, r): #a b c are ax+by+c=0     x,y,radi ...
 
 
 
-# Maze_eqns=[(3000,8000,1000)]
-
-# Maze=MazeMaker(10,[10000,10000],Maze_eqns)
 
 # #do update of these outside
+# saftey_distance_for_controller=400    #is radius
+# block_dimensions=[3200,3200]
+# Maze_eqns=[(1600,1600,saftey_distance_for_controller)]  # x y r of obstacle
+# Maze=MazeMaker(10,[block_dimensions[0],block_dimensions[1]],Maze_eqns)
 
-# goal_list=RRT(Maze,Maze_eqns,[550,9550],[9500,500],800,800,10,[10000,10000],400)
+# robot_pose_map=[0,0]
+# goal_pose_map=[2500,2500]
+# pose_list=RRT(Maze,Maze_eqns,(robot_pose_map[0],robot_pose_map[1]),(goal_pose_map[0],goal_pose_map[1]),800,800,10,block_dimensions,400)
+                    
 # print(goal_list)
 
 

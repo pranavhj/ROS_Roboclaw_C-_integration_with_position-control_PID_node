@@ -32,6 +32,20 @@ if(args==0){
 
 
 
+bool cmd_vel;
+    
+auto args1=n.getParam("cmd_vel", cmd_vel);
+
+cout << cmd_vel << " "<<args1<<endl;
+if(args1==0){
+	ROS_INFO_STREAM("Wrong argument passed, please pass correct arg and run again");
+	ROS_INFO_STREAM("correct args are _cmd_vel:=false _cmd_vel:=true");
+	return 0;
+
+}
+
+
+
 ros::Rate rate(10);
 std::cout<<"Started MAIN"<<std::endl;
 Rover *rover=new Rover(&n);
@@ -42,8 +56,16 @@ while(ros::ok()){
 	//rover->ExecuteIK();
 	if(!free){
 		//rover->ExecuteCMDVELNoInterpolation();
-		rover->KalmanFilter();
-		rover->ExecuteIKOnlySpeed();
+
+		if (!cmd_vel){
+			rover->KalmanFilter();
+			rover->ExecuteIKOnlySpeed();
+		}
+		else{
+			rover->KalmanFilter();
+			// rover->ExecuteCMDVELNoInterpolation();
+			rover->ExecuteCMDVEL();
+		}
 
 		// auto w=rover->GetEncoderPosnsFromTF();
 		// ROS_INFO_STREAM(w);

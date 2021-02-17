@@ -524,7 +524,7 @@ void Rover::PIDControllerOnlySpeed(float goal,float goal1, float goal2){
 	
 	
 
-	if((abs((goal)-(float(-wheelPosns_wrt_VR.position.x)))>50.0        &&    abs((goal1)-(float(wheelPosns_wrt_VR.position.y)))>50.0    &&   abs((goal2)-(float(wheelPosns_wrt_VR.position.z)))>50.0)  &&   ros::ok() )
+	if((abs((goal)-(float(-wheelPosns_wrt_VR.position.x)))>150.0        ||    abs((goal1)-(float(wheelPosns_wrt_VR.position.y)))>150.0    ||   abs((goal2)-(float(wheelPosns_wrt_VR.position.z)))>150.0)  &&   ros::ok() )
 		{
 
 		ForwardKinematics();                    //Publishes FK Pose to ros
@@ -606,12 +606,14 @@ void Rover::PIDControllerOnlySpeed(float goal,float goal1, float goal2){
 			vel_msg.index=0;
 			vel_msg.mot1_vel_sps=0;
 			vel_msg.mot2_vel_sps=0;                                               //To stop the motor when pid successful
-			velocity_publisher.publish(vel_msg);
-
+			
 
 			roboclaw::RoboclawMotorVelocity vel_msg_1;
 			vel_msg_1.index=0;							//To stop the motor when pid successful
 			vel_msg_1.mot2_vel_sps=0;
+
+
+			velocity_publisher.publish(vel_msg);
 			velocity_publisher_1.publish(vel_msg_1);
 			ROS_INFO_STREAM("#########STOP");
 		}

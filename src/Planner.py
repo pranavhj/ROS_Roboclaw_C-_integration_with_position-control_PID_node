@@ -433,6 +433,8 @@ class Planner():
         p.x=x_dash
         p.y=y_dash
 
+        
+
         ###############Give angle as heading angle
 
 
@@ -788,19 +790,28 @@ class Planner():
                 # Publish(self.pose_list[self.current_index])
                 # print("Publishing this ",self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
                 gp=self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index])
-                # x1,y1=self.pose_list[self.current_index-1]
-                # x2,y2=self.pose_list[self.current_index]
-                # tantheta=None
-                # theta=0.0
-                # if x1!=x2:
-                #     tantheta=(y2-y1)/(x2-x1)
-                #     theta=np.arctan2(tantheta,1)
-                #     theta=theta*180/3.142
-                # else:
-                #     tantheta=90.0
-                #     theta=90
+                x1,y1,x2,y2=0,0,0,0
+                if self.current_index+1<=len(self.pose_list)-1:
+                    x1,y1=self.pose_list[self.current_index]
+                    x2,y2=self.pose_list[self.current_index+1]
+                else:
+                    x1,y1=self.pose_list[self.current_index-1]
+                    x2,y2=self.pose_list[self.current_index]
 
-                # gp.theta=theta+90
+                tantheta=None
+                theta=0.0
+                if x1!=x2:
+                    tantheta=(y2-y1)/(x2-x1)
+                    theta=np.arctan2(tantheta,1)
+                    theta=theta*180/3.14159
+                else:
+                    tantheta=90.0
+                    if y2>y1:
+                        theta=90
+                    else:
+                        theta=-90
+
+                gp.theta=theta+90
                 self.goal_pose_publisher.publish(gp)
                 
 

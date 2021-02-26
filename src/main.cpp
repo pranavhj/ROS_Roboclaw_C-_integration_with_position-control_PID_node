@@ -64,7 +64,7 @@ while(ros::ok()){
 		else{
 			rover->KalmanFilter();
 			// rover->ExecuteCMDVELNoInterpolation();
-			rover->ExecuteCMDVEL();
+			rover->ExecuteCMDVELNoInterpolation();
 		}
 
 		// auto w=rover->GetEncoderPosnsFromTF();

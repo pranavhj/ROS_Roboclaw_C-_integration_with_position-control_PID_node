@@ -35,7 +35,7 @@ float kp_x_=(0.6+0.2)*1000,ki_x_=0,kd_x_=150,prev_error_x_=0,total_error_x_=0;
 float kp_theta_=0.025,ki_theta_=0.00000,kd_theta_=0.002,prev_error_theta_=0,total_error_theta_=0;  //kptheta=0.025
 float kp_y_=(0.6+0.2)*1000,ki_y_=0,kd_y_=150,prev_error_y_=0,total_error_y_=0;
 
-float speed_value=0.5;
+float speed_value=0.75;
 
 
 using namespace std;
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
     
 
     cout<<"START MAIN "<<endl;
-    ros::init(argc,argv,"follower");
+    ros::init(argc,argv,"left_controller_following");
     ros::NodeHandle n_("~");     /////~ for arguments
     // goal_pose_in_origin.orientation.w=1;
     cout<<"Node handle MAIN "<<endl;
@@ -283,8 +283,8 @@ int main(int argc, char **argv)
 
     goal_in_origin_2d_dash.theta+=180;
 
-    ros::Subscriber pose_subscriber_ = n_.subscribe("/goal_pose", 10000, GoalPoseCallback);
-    ros::Publisher velocity_publisher=n_.advertise<geometry_msgs::Twist>("/cmd_vel",10);
+    // ros::Subscriber pose_subscriber_ = n_.subscribe("/goal_pose", 10000, GoalPoseCallback);
+    ros::Publisher lc_pose2d_publisher = n_.advertise<geometry_msgs::Pose2D>("/planner_goal",10);
     ros::spinOnce();
 
     
@@ -293,11 +293,20 @@ int main(int argc, char **argv)
     cmd_vel_msg.angular.z=0;
 
 
+    geometry_msgs::Pose2D prev_lc_pose;
+
     
 
     while(n_.ok()){
 
         tf::StampedTransform camera_tf_transform_;
+
+        transformListener.waitForTransform("/origin", "/left_controller", ros::Time(0),
+                                                 ros::Duration(3));
+
+        transformListener.lookupTransform("/origin", "/left_controller", ros::Time(0),
+                                        camera_tf_transform_);
+
 
         transformListener.waitForTransform("/origin", "/robot_frame", ros::Time(0),
                                                  ros::Duration(3));
@@ -309,7 +318,7 @@ int main(int argc, char **argv)
 
 
         // ROS_INFO_STREAM("Get 2d in robot");
-        auto goal2dinRobot=getPose2DInRobot(transformListener);         /// point in pose2d where we want to be angle in 0 360
+        // auto goal2dinRobot=getPose2DInRobot(transformListener);         /// point in pose2d where we want to be angle in 0 360
 
         // ROS_INFO_STREAM("get in frame ");
         auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
@@ -319,63 +328,29 @@ int main(int argc, char **argv)
 
 
 
-
-    
-        
-
-
-        // ROS_INFO_STREAM("EL   ");
-        auto el=QuaterniontoEuler(robotpose.orientation);
+        auto left_controller_pose=getInFrame(transformListener,MakeGeometryMsgsPose(1,0,0, 0,0,0,1),
+                                            "/left_controller", "/origin");
 
 
-        float raw_pid_theta;
-        float raw_pid_x;
-        float raw_pid_y;
-        bool speed_loop=false;
+        auto lc_euler=QuaterniontoEuler(left_controller_pose.orientation);
 
-        auto distance = EulerDistance(goal_in_origin_2d,MakeGeometryMsgsPose2D(robotpose.position.x,robotpose.position.y,0));
 
-        if(distance >0.3){
-        	speed_loop=true;
-        	auto msg_val=Interpolator(goal2dinRobot.x,goal2dinRobot.y);
-            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,el[2]); 
+        auto lcpose2d=MakeGeometryMsgsPose2D(left_controller_pose.position.x,left_controller_pose.position.y,lc_euler[2]);  
 
-            cmd_vel_msg.angular.z=-raw_pid_theta;
+        lcpose2d.theta+=180;
 
-            // raw_pid_x=PIDX(goal2dinRobot.x);
-            cmd_vel_msg.linear.x=msg_val[0]*1000.0;//raw_pid_x;
+        ROS_INFO_STREAM(lcpose2d);
 
-            // raw_pid_y=PIDY(goal2dinRobot.y);
-            cmd_vel_msg.linear.y=msg_val[1]*1000.0;            //// because of mm input of cmd_vel
-        }
-        else{
-            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,el[2]);        
-            cmd_vel_msg.angular.z=-raw_pid_theta;
 
-            raw_pid_x=PIDX(goal2dinRobot.x);
-            raw_pid_y=PIDY(goal2dinRobot.y);
-
-            
-
-            cmd_vel_msg.linear.x=raw_pid_x;
-            cmd_vel_msg.linear.y=raw_pid_y;
-
+        if(EulerDistance(lcpose2d,prev_lc_pose)>0.2){
+            lc_pose2d_publisher.publish(lcpose2d);
+            prev_lc_pose=lcpose2d;
         }
 
         
-            // std::cout<<raw_pid_x<<" "<<raw_pid_y<<std::endl;
-        
-
-        // cout<<raw_pid_theta<<" "<<goal_in_origin_2d.theta<<" "<<el[2]<<endl; 
-        // ROS_INFO_STREAM("error"<<goal_theta_-euler_angles[2],raw_pid_theta);//rpy
-        // cout<<"error "<<goal_theta_-euler_angles[2]<<"raw_pid_theta "<<raw_pid_theta<<endl;
-        cout<<"speed_loop:"<<distance<<" err x "<<goal_in_origin_2d.x-robotpose.position.x<<"  x  "<<raw_pid_x<<"  err y "<<goal_in_origin_2d.y-robotpose.position.y<<"  y  "<<raw_pid_y<<"  errtheta  "<<abs(goal_in_origin_2d.theta-el[2])<<"  theta "<<raw_pid_theta<<endl;
-        // cout<<position_wrt_robot[0]<<"       "<<position_wrt_robot[1]<<"   "<<goal_theta_-euler_angles[2]<<endl;
-
-        velocity_publisher.publish(cmd_vel_msg);
-
-
         ros::spinOnce();
+        ros::Duration(1.0).sleep();
+
 
     }
 

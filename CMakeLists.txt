@@ -130,6 +130,9 @@ add_executable(tf_publisher src/tf_publisher.cpp src/tf_tools.cpp )
 add_executable(follower src/follower.cpp)
 
 
+add_executable(lc_following src/left_controller_following.cpp)
+
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(main  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
@@ -137,6 +140,8 @@ add_dependencies(main  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
 add_dependencies(tf_publisher  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
 
 add_dependencies(follower  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
+
+add_dependencies(lc_following  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGETS})
 
 
 ## Specify libraries to link a library or executable target against
@@ -153,6 +158,13 @@ add_dependencies(follower  ${catkin_EXPORTED_TARGETS}    ${Boost1_EXPORTED_TARGE
 
 
 target_link_libraries(follower
+    ${catkin_LIBRARIES}   
+    
+  )
+
+
+
+target_link_libraries(lc_following
     ${catkin_LIBRARIES}   
     
   )

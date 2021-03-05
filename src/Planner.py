@@ -38,7 +38,7 @@ class Planner():
         self.threshold=10
 
 
-        self.saftey_distance_for_controller=400    #is radius
+        self.saftey_distance_for_controller=400    #is radius of obstacle
         self.block_dimensions=[3200,3200]
         self.Maze_eqns=[(000,000,self.saftey_distance_for_controller)]  # x y r of obstacle
         self.Maze=MazeMaker(10,[self.block_dimensions[0],self.block_dimensions[0]],self.Maze_eqns)
@@ -89,6 +89,8 @@ class Planner():
 
         self.upperline=None
         self.lowerline=None
+
+        self.prev_goal=[(0,0,1),(0,0,0,1)]
         
        
         
@@ -384,11 +386,11 @@ class Planner():
         #get_caller_id(): Get fully resolved name of local node
         #rospy.loginfo(rospy.get_caller_id() + "I heard %s")#, message.data)
         
-
+        self.prev_goal=self.goal_pose
         self.goal_change=True
-        quat=self.euler_to_quaternion(0,0,0)
+        quat=self.euler_to_quaternion(0,0,message.theta*3.14159/180.0)
         self.goal_pose=[(message.x,message.y,1),( quat[0],quat[1],quat[2],quat[3])]
-
+        # rospy.sleep(1)
         print("GOAL POSE CHANGED")
 
 
@@ -407,8 +409,17 @@ class Planner():
         
 
         if self.goal_change:
-            self.goal_change=False
-            return True
+            # if self.EulerDistance([self.goal_pose[0][0],self.goal_pose[0][1]],[self.prev_goal[0][0],self.prev_goal[0][1]])!=0:
+                # print("#####EUL IS #######",self.EulerDistance([self.goal_pose[0][0],self.goal_pose[0][1]],[self.prev_goal[0][0],self.prev_goal[0][1]]))
+            # if self.EulerDistance([self.goal_pose[0][0],self.goal_pose[0][1]],[self.prev_goal[0][0],self.prev_goal[0][1]])>0.1:
+
+                self.goal_change=False
+                # print("GOAL POSE CHANGED")
+                return True
+
+        #     else:
+        #         self.goal_change=False
+
         return False
 
 
@@ -778,7 +789,7 @@ class Planner():
 
             # ###################print("Distance away from current_index ",self.EulerDistance(robot_pose_map,self.pose_list[self.current_index]))
 
-            if self.EulerDistance(robot_pose_map,self.pose_list[self.current_index])<300 and self.current_index!=len(self.pose_list)-1:
+            if self.EulerDistance(robot_pose_map,self.pose_list[self.current_index])<100 and self.current_index!=len(self.pose_list)-1:
                 self.current_index+=1
                 print("Current current_index is ",self.current_index)
 
@@ -789,27 +800,34 @@ class Planner():
             if(self.EulerDistance(robot_pose_map, obs_map) > (self.robot_radius/2) + (self.saftey_distance_for_controller/2) ):
                 # Publish(self.pose_list[self.current_index])
                 # print("Publishing this ",self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
+                tantheta=None
+                theta=0.0
                 gp=self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index])
                 x1,y1,x2,y2=0,0,0,0
                 if self.current_index+1<=len(self.pose_list)-1:
                     x1,y1=self.pose_list[self.current_index]
                     x2,y2=self.pose_list[self.current_index+1]
-                else:
-                    x1,y1=self.pose_list[self.current_index-1]
-                    x2,y2=self.pose_list[self.current_index]
 
-                tantheta=None
-                theta=0.0
-                if x1!=x2:
-                    tantheta=(y2-y1)/(x2-x1)
-                    theta=np.arctan2(tantheta,1)
-                    theta=theta*180/3.14159
-                else:
-                    tantheta=90.0
-                    if y2>y1:
-                        theta=90
+                    
+                    if x1!=x2:
+                        tantheta=(y2-y1)/(x2-x1)
+                        theta=np.arctan2(tantheta,1)
+                        theta=theta*180/3.14159
                     else:
-                        theta=-90
+                        tantheta=90.0
+                        if y2>y1:
+                            theta=90
+                        else:
+                            theta=-90
+                else:
+                    # x1,y1=self.pose_list[self.current_index-1]
+                    # x2,y2=self.pose_list[self.current_index]
+                    eul=self.quaternion_to_euler(self.goal_pose[1][0],self.goal_pose[1][1],self.goal_pose[1][2],self.goal_pose[1][3])
+                    theta=eul[2]
+                    # print("GIVING GOAL THETA " , theta)
+
+
+                
 
                 gp.theta=theta+90
                 self.goal_pose_publisher.publish(gp)

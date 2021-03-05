@@ -286,10 +286,10 @@ void Rover::ExecuteCMDVEL(){
 	finalState.theta=cmd_vel.angular.z;
 	//ROS_INFO_STREAM(finalState);
 	
-	if(abs(Euler(finalState,prevState))>100){
+	if(abs(Euler(finalState,prevState))>interpolation_speed){
 		//divide speeds
 		auto temp=finalState;
-		float tempxval=100;
+		float tempxval=interpolation_speed;
 		if(abs(finalState.x-prevState.x)>abs(finalState.y-prevState.y)){
 				
 				if(abs(finalState.x-prevState.x)<tempxval){
@@ -1216,6 +1216,7 @@ void Rover::KalmanFilter(){
 
 
 // IK, give x,y,t wrt robot initial outputs wheel posns
+//w in rad
 geometry_msgs::Pose Rover::matrixCalculation(float x, float y, float w)           //////Inv Kinematics calculation function for rover
 {    float body_twist;
     float body_velocity_x;

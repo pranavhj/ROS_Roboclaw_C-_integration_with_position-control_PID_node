@@ -1,7 +1,33 @@
+/**
+ * @copyright (c) 2020, Pranav Jain, Kartik Venkat
+ *
+ * @file rover.cpp
+ *
+ * @authors
+ * Pranav Jain - pranavhj@umd.edu
+ * Kartik Venkat - kartik97@terpmail.umd.edu
+ *
+ * @version 1.0
+ *
+ * @section LICENSE
+ * MIT License
+ *
+ * @section DESCRIPTION:
+ * This file contains the function definitions of the Rover class.
+ *
+ */
+
+
 #include "rover.h"
 
 #include "helper.h"
 
+
+/**
+   * @brief: Constructor for the Rover class
+   * @param: pointer to the node handle
+   * @return: None
+   * */
 Rover::Rover(ros::NodeHandle *n){
 	std::cout<<"Before Ini"<<std::endl;
 	last_FK_call=ros::Time::now().toSec();
@@ -48,10 +74,10 @@ Rover::Rover(ros::NodeHandle *n){
 		ros::spinOnce();
 		tf::StampedTransform camera_tf_transform_;
 
-	    transformListener.waitForTransform("origin", "robot_frame", ros::Time(0),
+	    transformListener.waitForTransform("origin", "robot_frame_1", ros::Time(0),
 	                                             ros::Duration(3));
 
-	    transformListener.lookupTransform("origin", "robot_frame", ros::Time(0),
+	    transformListener.lookupTransform("origin", "robot_frame_1", ros::Time(0),
 	                                    camera_tf_transform_);
 
 
@@ -90,7 +116,7 @@ Rover::Rover(ros::NodeHandle *n){
 	    auto yo=-( -(x*sin(tht)) + (y*cos(tht)) );
 
 
-	    auto  robot_pose_in_origin_ini =TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(xo,yo,0,   quat.x,quat.y,quat.z,quat.w), "robot_frame", "origin");
+	    auto  robot_pose_in_origin_ini =TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(xo,yo,0,   quat.x,quat.y,quat.z,quat.w), "robot_frame_1", "origin");
 	    std::cout<<"Robot Frame Get in frame done"<<std::endl;
 
 	    // auto robot_pose_in_origin_ini=getInFrame(MakeGeometryMsgsPose(0,0,0 ,0,0,0,1), "/robot_frame",  "/origin");
@@ -106,7 +132,11 @@ Rover::Rover(ros::NodeHandle *n){
 }
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 geometry_msgs::Quaternion Rover::EulerToQuaternion(double x,double y,double z){
 	tf2::Quaternion myQuaternion;
     myQuaternion.setRPY( x,y,z);  // Create this quaternion from roll/pitch/yaw (in radians)
@@ -145,7 +175,11 @@ geometry_msgs::Quaternion Rover::EulerToQuaternion(double x,double y,double z){
 
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
 	//std::cout<<"poseCallback";
 	//ROS_INFO_STREAM(*pose_message);
@@ -163,7 +197,11 @@ void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_me
 }
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message){
 	//std::cout<<"pose_1Callback";
 	//ROS_INFO_STREAM(*pose_message);
@@ -183,7 +221,11 @@ void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_
 
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message){
 	//std::cout<<"poseCallback";
 	//ROS_INFO_STREAM(*pose_message);
@@ -196,7 +238,11 @@ void Rover::CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message){
 
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message){   
 	//IKpose=*(pose_message);
 	IKpose.x=(pose_message->x);
@@ -207,7 +253,11 @@ void Rover::IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message){
 	ROS_INFO_STREAM(IKpose);
 }
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::IK(){              //takes IK pose and converts to position values wrt robot_initial
 	
 	ros::spinOnce();
@@ -229,7 +279,11 @@ void Rover::IK(){              //takes IK pose and converts to position values w
     
 }
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::ExecuteIK(){
 	//std::cout<<position.position_1<<"    "<<position.position_2<<"  "<<position.position_3<<std::endl;
 
@@ -268,13 +322,22 @@ void Rover::ExecuteIK(){
 //cout<<pose.mot1_enc_steps<<endl;
 }
 
+/**
+   * @brief:
+   * @param:
+   * @return: float
+   * */
 float Euler(geometry_msgs::Pose2D finalState,geometry_msgs::Pose2D prevState){
 	return float(sqrt((finalState.x*finalState.x)+(finalState.y*finalState.y))-sqrt((prevState.x*prevState.x)+(prevState.y*prevState.y)));
 	}
 
 
 
-
+/**
+   * @brief:
+   * @param:
+   * @return: None
+   * */
 void Rover::ExecuteCMDVEL(){
 	ros::spinOnce();
 	
@@ -488,7 +551,7 @@ void Rover::ExecuteIKOnlySpeed(){
 
 
 geometry_msgs::Pose Rover::GetEncoderPosnsFromTF(){
-	auto robot_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1), "robot_frame", "robot_initial_frame");
+	auto robot_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1), "robot_frame_1", "robot_initial_frame");
 
 	auto eul=TF_->QuaterniontoEuler(robot_in_robot_intial);
 
@@ -1058,7 +1121,9 @@ void Rover::FKVROriginFrame(){
 }
 
 
-
+//void Rover::CalculateError(){
+//    //
+//}
 //Publishes frame robot_frame_KF
 void Rover::KalmanFilter(){
 	//ROS_INFO_STREAM("KalmanFilter");
@@ -1071,6 +1136,8 @@ void Rover::KalmanFilter(){
 	//Xn-1 is in robot_initial_frame
 
 	//convert this to origin
+
+//	CalculateError();
 
 	auto pose_in_robot_initial=TF_->ConvertVectorToPose( {double(Xn_1(0)),double(Xn_1(1)),double(Xn_1(2))} );   //in m rad from prediction
 
@@ -1123,7 +1190,7 @@ void Rover::KalmanFilter(){
 		
 
 	//do this better
-	robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame" , "/robot_initial_frame");
+	robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_1" , "/robot_initial_frame");
 	if(EulerDistance(robot_observed_pose,prev_obs_pose)==0){
 	
 		robot_observed_pose=pose_in_robot_initial;

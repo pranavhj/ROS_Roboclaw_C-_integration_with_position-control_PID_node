@@ -39,21 +39,23 @@ class Rover{
 
 	private:
 
+        // Coefficients of Kalman Filter
 		float Kp1=1.5,  ki1=0.000000,  kd1=1,prev_e1=0,max_speed=1500,total_error_1=0;
 		float Kp2=1.5,  ki2=0.000000, kd2=1,prev_e2=0,max_speed_2=1500,total_error_2=0;
 		float Kp3=1.5,  ki3=0.000000,  kd3=1,prev_e3=0,max_speed_3=1500,total_error_3=0;
 
+		//
 		ros::Publisher velocity_publisher;
 		ros::Subscriber pose_subscriber;
 		ros::Subscriber position_subscriber;
-		
 		ros::Subscriber cmd_vel_subscriber;
 
 		
 		float targets[3];
 		float interpolation_speed=50;
 		float prev_speed=0,prev_speed_1=0,prev_speed_2=0;
-		float prev_x=0,prev_y=0,prev_theta=0;geometry_msgs::Pose2D prevState;
+		float prev_x=0,prev_y=0,prev_theta=0;
+		geometry_msgs::Pose2D prevState;
 		ros::Publisher velocity_publisher_1;
 		ros::Subscriber pose_subscriber_1;
 		ros::Publisher DonePublisher;
@@ -116,60 +118,192 @@ class Rover{
 
 	public:
 
-	Rover(ros::NodeHandle *n);
-	void poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
-	void pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
-	
-	void positionCallback(const motor_controller::position::ConstPtr& position_message);
-	void IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message);
-	void CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message);
-	
-	
-	void ExecuteCMDVEL();
-	void ExecuteCMDVELNoInterpolation();
+        /**
+         * @brief: Constructor for the Rover class
+         * @param: *n - Pointer to the node handle
+         * @return: None
+         **/
+        Rover(ros::NodeHandle *n);
 
-	void SetRemote(Remote *c){remote=c;}
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_message);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void positionCallback(const motor_controller::position::ConstPtr& position_message);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void IKCallback(const geometry_msgs::Pose2D::ConstPtr& pose_message);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void CMDVELCallback(const geometry_msgs::Twist::ConstPtr& pose_message);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ExecuteCMDVEL();
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ExecuteCMDVELNoInterpolation();
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void SetRemote(Remote *c){remote=c;}
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void PIDcontroller(float goal1,float goal2,float goal3);
+
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void PIDControllerOnlySpeed(float goal,float goal1, float goal2);
 
 
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        geometry_msgs::Pose GetEncoderPosnsFromTF();
 
-	void PIDcontroller(float goal1,float goal2,float goal3);
-	void PIDControllerOnlySpeed(float goal,float goal1, float goal2);
-	geometry_msgs::Pose GetEncoderPosnsFromTF();
-	void ExecuteIKOnlySpeed();
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ExecuteIKOnlySpeed();
 
-	void ForwardKinematics();
-	void ForwardKinematics(float w1,float w2,float w3);
-	void ExecuteIK();
-	geometry_msgs::Pose matrixCalculation(float x, float y, float w);
-	void IK();
-	geometry_msgs::Pose2D ConvertPosition(geometry_msgs::Pose2D remoteState);
-	void GotoPosition(geometry_msgs::Pose2D remoteState);
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ForwardKinematics();
 
-	void FK();
-	void InitializeMatrices();
-	void KalmanFilter();
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ForwardKinematics(float w1,float w2,float w3);
 
-	// geometry_msgs::Pose getInFrame(geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id);
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void ExecuteIK();
 
-	void FKVROriginFrame();
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        geometry_msgs::Pose matrixCalculation(float x, float y, float w);
 
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void IK();
 
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        geometry_msgs::Pose2D ConvertPosition(geometry_msgs::Pose2D remoteState);
 
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void GotoPosition(geometry_msgs::Pose2D remoteState);
 
-	
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void FK();
 
-	geometry_msgs::Quaternion EulerToQuaternion(double x,double y,double z);
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void InitializeMatrices();
 
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void KalmanFilter();
 
-	double EulerDistance(geometry_msgs::Pose p1,geometry_msgs::Pose p2){
+        // geometry_msgs::Pose getInFrame(geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id);
 
-	return double(sqrt(pow((p1.position.x-p2.position.x),2) + pow((p1.position.y-p2.position.y),2) + pow((p1.position.z-p2.position.z),2)));
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        void FKVROriginFrame();
 
-	}
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        geometry_msgs::Quaternion EulerToQuaternion(double x,double y,double z);
 
-
-
-	
-
-
+        /**
+         * @brief:
+         * @param:
+         * @return: None
+         **/
+        double EulerDistance(geometry_msgs::Pose p1,geometry_msgs::Pose p2) {
+            return double(sqrt(pow((p1.position.x-p2.position.x),2) + pow((p1.position.y-p2.position.y),2) + pow((p1.position.z-p2.position.z),2)));
+	    }
 	};
+
+

@@ -22,7 +22,8 @@ rospy.init_node('PosePublisher',anonymous=True)
 publc=rospy.Publisher('leftControllerPose',PoseStamped,queue_size=100)
 pubrc=rospy.Publisher('rightControllerPose',PoseStamped,queue_size=100)
 pubhead=rospy.Publisher('headPose',PoseStamped,queue_size=100)
-pubtrac=rospy.Publisher('trackerPose',PoseStamped,queue_size=100)
+pubtrac1=rospy.Publisher('trackerPose1',PoseStamped,queue_size=100)
+pubtrac2=rospy.Publisher('trackerPose2',PoseStamped,queue_size=100)
 
 
 
@@ -62,7 +63,10 @@ while True :
 		pubrc.publish(poseStamped)
 
 	if frame_id==3:
-		pubtrac.publish(poseStamped)
+		pubtrac1.publish(poseStamped)
+
+	if frame_id==4:
+		pubtrac2.publish(poseStamped)
 
 
 

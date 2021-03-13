@@ -109,17 +109,11 @@ public:
 	    transformListener.lookupTransform(pose_frame_id, op_frame_id, ros::Time(0),
 	                                    camera_tf_transform_);	
 
-	    
 	    geometry_msgs::PoseStamped StampedPose_in,StampedPose_out; 
 	    StampedPose_in.header.frame_id = pose_frame_id;
 	    StampedPose_in.pose = pose;
-	    
-
 
 	    transformListener.transformPose(op_frame_id,StampedPose_in,StampedPose_out);
-
-
-	    
 
 	    return StampedPose_out.pose;
 	    
@@ -140,7 +134,6 @@ public:
 	    transformListener.lookupTransform(op_frame_id,pose_frame_id, ros::Time(0),
 	                                    camera_tf_transform_);	
 
-	    
 	    geometry_msgs::Pose pose;
 
 	    pose.position.x=camera_tf_transform_.getOrigin().x();
@@ -152,8 +145,6 @@ public:
 	    pose.orientation.z=camera_tf_transform_.getRotation().z();
 	    pose.orientation.w=camera_tf_transform_.getRotation().w();
 	    return pose;
-
-	    
 	}
 
 
@@ -182,13 +173,6 @@ public:
 	    static_transformStamped.transform.translation.x = pose.position.x;
 	    static_transformStamped.transform.translation.y = pose.position.y;
 	    static_transformStamped.transform.translation.z = pose.position.z;
-
-
-	    
-
-	    
-
-	    
 
 
 	    static_transformStamped.transform.rotation.x = pose.orientation.x;
@@ -225,8 +209,7 @@ public:
 
 
 
-	geometry_msgs::Pose ConvertVectorToPose(std::vector<double> v){  //input is x y theta, input in mms
-
+	geometry_msgs::Pose ConvertVectorToPose(std::vector<double> v){  //input is x y theta, input in m
 
 		auto quat=EulerToQuaternion(0,0,v[2]);
 	    geometry_msgs :: Pose pose;
@@ -234,9 +217,6 @@ public:
 
 	    pose.orientation=quat;
 	    return pose;
-	    
-
-
 	}
 
 
@@ -252,13 +232,12 @@ public:
 	}
 
 
+
+
 	Eigen::Vector3d PosetoEigenVector3d(geometry_msgs::Pose pose){
 		Eigen::Vector3d Xn_1;
 		Xn_1.resize(3);
-
-
 		auto eul = QuaterniontoEuler(pose);// in rad
-
 		Xn_1<<pose.position.x, pose.position.y , eul[2];
 
 

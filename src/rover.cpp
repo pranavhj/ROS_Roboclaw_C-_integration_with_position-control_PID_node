@@ -66,7 +66,7 @@ Rover::Rover(ros::NodeHandle *n){
 	std_msgs::Bool d;
 	d.data=true;
 	reset_enc_publisher.publish(d);
-	ros::Duration(1.0).sleep();
+	ros::Duration(3.0).sleep();
 	//back:
 
 	// try
@@ -93,9 +93,9 @@ Rover::Rover(ros::NodeHandle *n){
 		//get current pose
 		//get val of ini pose from that
 
-	    FK();
-	    FKVROriginFrame();
-	    ForwardKinematics();
+	    FK();                      //only uses encoders
+	    FKVROriginFrame();          //only uses encs
+	    ForwardKinematics();       //only uses encs
 
 
 
@@ -117,14 +117,27 @@ Rover::Rover(ros::NodeHandle *n){
 
 
 	    auto  robot_pose_in_origin_ini =TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(xo,yo,0,   quat.x,quat.y,quat.z,quat.w), "robot_frame_1", "origin");
-	    std::cout<<"Robot Frame Get in frame done"<<std::endl;
+	    std::cout<<"Robot Frame1 Get in frame done"<<std::endl;
 
 	    // auto robot_pose_in_origin_ini=getInFrame(MakeGeometryMsgsPose(0,0,0 ,0,0,0,1), "/robot_frame",  "/origin");
-	    ROS_INFO_STREAM("Ini Robot pose in origin  is ");
+	    ROS_INFO_STREAM("Ini Robot1 pose in origin  is ");
 	    ROS_INFO_STREAM(robot_pose_in_origin_ini);
 
 
-	    TF_->PublishStaticTransform("/robot_initial_frame", "/origin",robot_pose_in_origin_ini);
+	    TF_->PublishStaticTransform("/robot_initial_frame_1", "/origin",robot_pose_in_origin_ini);
+
+
+
+
+        auto  robot_pose2_in_origin_ini =TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(xo,yo,0,   quat.x,quat.y,quat.z,quat.w), "robot_frame_2", "origin");
+        std::cout<<"Robot Frame2 Get in frame done"<<std::endl;
+
+        // auto robot_pose_in_origin_ini=getInFrame(MakeGeometryMsgsPose(0,0,0 ,0,0,0,1), "/robot_frame",  "/origin");
+        ROS_INFO_STREAM("Ini Robot2 pose in origin  is ");
+        ROS_INFO_STREAM(robot_pose2_in_origin_ini);
+
+
+        TF_->PublishStaticTransform("/robot_initial_frame_2", "/origin",robot_pose2_in_origin_ini);
 	
 
 	}
@@ -531,7 +544,7 @@ void Rover::ExecuteIKOnlySpeed(){
     // ROS_INFO_STREAM(IKpose);
 
     auto quat=TF::EulerToQuaternion(0,0,w);
-    auto goal_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(x,y,0,quat.x,quat.y,quat.z,quat.w), "origin", "robot_initial_frame");
+    auto goal_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(x,y,0,quat.x,quat.y,quat.z,quat.w), "origin", "robot_initial_frame_1");
     // ROS_INFO_STREAM("goal_in_robot_intial");
     // ROS_INFO_STREAM(goal_in_robot_intial);
     
@@ -551,7 +564,7 @@ void Rover::ExecuteIKOnlySpeed(){
 
 
 geometry_msgs::Pose Rover::GetEncoderPosnsFromTF(){
-	auto robot_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1), "robot_frame_1", "robot_initial_frame");
+	auto robot_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1), "robot_frame_1", "robot_initial_frame_1");
 
 	auto eul=TF_->QuaterniontoEuler(robot_in_robot_intial);
 
@@ -1107,7 +1120,8 @@ void Rover::FKVROriginFrame(){
 	try{
 		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
 		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
-		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame");
+		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_1");
+        TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_2");
 	}
 
 	catch(...){
@@ -1183,59 +1197,64 @@ void Rover::KalmanFilter(){
 
 	// auto Y=H*(Xn_1)+D;                            //will be from vr controller get robot frame from tf
 
+    for(int i=0;i<2;i++) {
+        //actual obs
+        geometry_msgs::Pose robot_observed_pose;
 
-	//actual obs
-	geometry_msgs::Pose robot_observed_pose;
-	
-		
-
-	//do this better
-	robot_observed_pose=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_1" , "/robot_initial_frame");
-	if(EulerDistance(robot_observed_pose,prev_obs_pose)==0){
-	
-		robot_observed_pose=pose_in_robot_initial;
-		return;
-
-	}
-	else{
-		
-	}
-
-	//do this better
-
-	
-
-	auto Y=TF_->PosetoEigenVector3d(robot_observed_pose);
-	prev_obs_pose=robot_observed_pose;
-
-	// std::cout<<"Y "<<Y<<std::endl<<std::endl;
+        //do this better
+        robot_observed_pose = TF_->getInFrame(transformListener,
+                                              TF::MakeGeometryMsgsPose(0, 0, 0, 0, 0, 0, 1),
+                                              "/robot_frame_" + std::to_string(i+1),
+                                              "/robot_initial_frame_" + std::to_string(i+1));
 
 
+        auto Y = TF_->PosetoEigenVector3d(robot_observed_pose);
+        prev_obs_pose = robot_observed_pose;
+
+        // std::cout<<"Y "<<Y<<std::endl<<std::endl;
+
+        auto error_estimates=CalculateError();
+        //ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " " + std::to_string(error_estimates[2]) );
+        if(error_estimates[1]>0.1) {
+            if(i==0    && error_estimates[0]>error_estimates[2]) {
+                ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
+                                    + std::to_string(error_estimates[2]) + "---FAIL");
+                ROS_ERROR_STREAM("Tracker 1 is unavailable  !!!");
+                return;
+            }
+            if(i==1    && error_estimates[0] < error_estimates[2]) {
+                ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
+                                    + std::to_string(error_estimates[2]) + "---FAIL");
+                ROS_ERROR_STREAM("Tracker 2 is unavailable  !!!");
+                return;
+            }
+        }
+
+        ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
+                            + std::to_string(error_estimates[2]));
 
 
-	// std::cout<<"Y-Yest "<<Y-Yest<<std::endl<<std::endl<<std::endl;
+        // std::cout<<"Y-Yest "<<Y-Yest<<std::endl<<std::endl<<std::endl;
 
 
-	auto X=Xn_1+ K*(Y-Yest);                                        //is in robot_initial
-	
-
-	// std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
-	Xn_1=X;
+        auto X = Xn_1 + K * (Y - Yest);                                        //is in robot_initial
 
 
-	
 
 
-	try{
-		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
-		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
-		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame");
-	}
+        // std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
+        Xn_1 = X;
 
-	catch(...){
-		ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
-	}
-	
+        try {
+            auto kf_pose_robot_frame_in_robot_initial_frame = TF_->ConvertVectorToPose({X(0), X(1), X(2)});
+            kf_pose_robot_frame_in_robot_initial_frame.position.z = lastObsPose.position.z;
+            TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame, "robot_frame_kf", "robot_initial_frame_"+std::to_string(i+1));
+        }
+
+        catch (...) {
+            ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
+        }
+    }
 
 
 
@@ -1279,6 +1298,41 @@ void Rover::KalmanFilter(){
 
 
 
+
+
+
+std::vector<double> Rover::CalculateError(){
+
+    //robot_frame_1
+    //robot_frame_2
+    //robot_enc
+    FKVROriginFrame();
+
+    auto rb_eig_enc = Xn_1;
+    //Xn_1=//from enc
+
+
+    auto rbf1 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_1" , "/robot_initial_frame_1");
+
+    auto rbf2 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_2" , "/robot_initial_frame_2");
+
+    auto rb_enc = TF_->ConvertVectorToPose({rb_eig_enc(0),rb_eig_enc(1),rb_eig_enc(2)});
+
+    auto rbf1_e_rbf2 = EulerDistance(rbf1,rbf2); //+ sqrt(pow((rbf1.orientation.x-rbf1.orientation.x),2);
+    auto rbf1_e_rb_enc = EulerDistance(rbf1,rb_enc);
+    auto rbf2_e_rb_enc = EulerDistance(rbf2,rb_enc);
+
+    return {rbf1_e_rb_enc, rbf1_e_rbf2, rbf2_e_rb_enc};
+
+
+
+
+
+
+
+
+
+}
 
 
 

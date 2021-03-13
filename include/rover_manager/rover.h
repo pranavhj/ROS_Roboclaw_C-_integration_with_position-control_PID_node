@@ -304,6 +304,8 @@ class Rover{
         double EulerDistance(geometry_msgs::Pose p1,geometry_msgs::Pose p2) {
             return double(sqrt(pow((p1.position.x-p2.position.x),2) + pow((p1.position.y-p2.position.y),2) + pow((p1.position.z-p2.position.z),2)));
 	    }
+
+	    std::vector<double> CalculateError();
 	};
 
 

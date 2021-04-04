@@ -66,20 +66,26 @@ void PublishToTF(){
     ros::spinOnce();
     auto timenow=ros::Time::now().toSec();
    
-    if(timenow- last_recvd_tracker1<0.5)
-        TF_->publishFrame(trackerPoseStamped1.pose,"tracker_1","origin");
+    if(timenow- last_recvd_tracker1<0.5) {
+        TF_->publishFrame(trackerPoseStamped1.pose, "tracker_1", "origin");
+    }
 
-    if(timenow- last_recvd_tracker2<0.5)
-        TF_->publishFrame(trackerPoseStamped2.pose,"tracker_2","origin");
+    if(timenow- last_recvd_tracker2<0.5) {
+
+        TF_->publishFrame(trackerPoseStamped2.pose, "tracker_2", "origin");
+    }
     
-    if(timenow- last_recvd_left_controller<0.5)
-        TF_->publishFrame(leftControllerPoseStamped.pose,"left_controller","origin");
+    if(timenow- last_recvd_left_controller<0.5) {
+        TF_->publishFrame(leftControllerPoseStamped.pose, "left_controller", "origin");
+    }
     
-    if(timenow- last_recvd_right_controller<0.5) 
-        TF_->publishFrame(rightControllerPoseStamped.pose,"right_controller","origin");
+    if(timenow- last_recvd_right_controller<0.5) {
+        TF_->publishFrame(rightControllerPoseStamped.pose, "right_controller", "origin");
+    }
     
-    if(timenow- last_recvd_headset<0.5)
-        TF_->publishFrame(headSetPoseStamped.pose,"headset","origin");
+    if(timenow- last_recvd_headset<0.5) {
+        TF_->publishFrame(headSetPoseStamped.pose, "headset", "origin");
+    }
 
 
 }
@@ -101,6 +107,8 @@ void TrackerCallback2(const geometry_msgs::PoseStamped::ConstPtr& pose){
     // cout<<"Callback "<<CallbackCounter<<endl;
     trackerPoseStamped2=*pose;
     last_recvd_tracker2=ros::Time::now().toSec();
+    trackerPoseStamped2.pose.position.z=trackerPoseStamped1.pose.position.z;
+
     // CallbackCounter++;
 
 }

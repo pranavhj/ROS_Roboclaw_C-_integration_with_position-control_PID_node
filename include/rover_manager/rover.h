@@ -113,6 +113,7 @@ class Rover{
 
 		geometry_msgs::Pose lastObsPose,prev_obs_pose;
 		double last_FK_call=0;
+//		float fixed_z=0;
 
 
 

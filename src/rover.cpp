@@ -1212,21 +1212,22 @@ void Rover::KalmanFilter(){
         prev_obs_pose = robot_observed_pose;
 
         // std::cout<<"Y "<<Y<<std::endl<<std::endl;
-
+        FKVROriginFrame();
         auto error_estimates=CalculateError();
         //ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " " + std::to_string(error_estimates[2]) );
         if(error_estimates[1]>0.1) {
+
             if(i==0    && error_estimates[0]>error_estimates[2]) {
                 ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
                                     + std::to_string(error_estimates[2]) + "---FAIL");
                 ROS_ERROR_STREAM("Tracker 1 is unavailable  !!!");
-                return;
+                continue;
             }
             if(i==1    && error_estimates[0] < error_estimates[2]) {
                 ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
                                     + std::to_string(error_estimates[2]) + "---FAIL");
                 ROS_ERROR_STREAM("Tracker 2 is unavailable  !!!");
-                return;
+                continue;
             }
         }
 
@@ -1236,7 +1237,7 @@ void Rover::KalmanFilter(){
 
         // std::cout<<"Y-Yest "<<Y-Yest<<std::endl<<std::endl<<std::endl;
 
-
+        ROS_INFO_STREAM("@@@@@@@@@@@@@@@@@@@@@@@@@@@@"+std::to_string(i));
         auto X = Xn_1 + K * (Y - Yest);                                        //is in robot_initial
 
 
@@ -1246,6 +1247,7 @@ void Rover::KalmanFilter(){
         Xn_1 = X;
 
         try {
+//            ROS_INFO_STREAM("------------Publishing without error:"+ std::to_string(i));
             auto kf_pose_robot_frame_in_robot_initial_frame = TF_->ConvertVectorToPose({X(0), X(1), X(2)});
             kf_pose_robot_frame_in_robot_initial_frame.position.z = lastObsPose.position.z;
             TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame, "robot_frame_kf", "robot_initial_frame_"+std::to_string(i+1));
@@ -1317,6 +1319,12 @@ std::vector<double> Rover::CalculateError(){
     auto rbf2 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_2" , "/robot_initial_frame_2");
 
     auto rb_enc = TF_->ConvertVectorToPose({rb_eig_enc(0),rb_eig_enc(1),rb_eig_enc(2)});
+
+
+//    ROS_INFO_STREAM("RBF1-init1");ROS_INFO_STREAM(rbf1);ROS_INFO_STREAM("");ROS_INFO_STREAM("");
+//    ROS_INFO_STREAM("RBF2-init2");ROS_INFO_STREAM(rbf2);ROS_INFO_STREAM("");ROS_INFO_STREAM("");
+    ROS_INFO_STREAM("RBFec-init");ROS_INFO_STREAM(rb_enc);
+
 
     auto rbf1_e_rbf2 = EulerDistance(rbf1,rbf2); //+ sqrt(pow((rbf1.orientation.x-rbf1.orientation.x),2);
     auto rbf1_e_rb_enc = EulerDistance(rbf1,rb_enc);

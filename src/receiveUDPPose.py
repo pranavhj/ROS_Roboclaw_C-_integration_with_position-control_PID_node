@@ -25,7 +25,7 @@ pubhead=rospy.Publisher('headPose',PoseStamped,queue_size=100)
 pubtrac1=rospy.Publisher('trackerPose1',PoseStamped,queue_size=100)
 pubtrac2=rospy.Publisher('trackerPose2',PoseStamped,queue_size=100)
 
-
+trac_1_z=0
 
 print("Starting Receiving")
 
@@ -64,9 +64,12 @@ while True :
 
 	if frame_id==3:
 		pubtrac1.publish(poseStamped)
+		trac_1_z=poseStamped.pose.position.z
 
 	if frame_id==4:
+		poseStamped.pose.position.z=trac_1_z
 		pubtrac2.publish(poseStamped)
+
 
 
 

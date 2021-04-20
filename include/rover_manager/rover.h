@@ -87,6 +87,8 @@ class Rover{
 		Eigen::Vector3d W_prev;
 
 		Eigen::Vector3d Xn_1;
+        Eigen::Vector3d Xn_1_odom;
+
 
 
 		Eigen::MatrixXd Pk_1;
@@ -113,6 +115,7 @@ class Rover{
 
 		geometry_msgs::Pose lastObsPose,prev_obs_pose;
 		double last_FK_call=0;
+        bool both_trackers_working=true;
 //		float fixed_z=0;
 
 
@@ -306,7 +309,7 @@ class Rover{
             return double(sqrt(pow((p1.position.x-p2.position.x),2) + pow((p1.position.y-p2.position.y),2) + pow((p1.position.z-p2.position.z),2)));
 	    }
 
-	    std::vector<double> CalculateError();
+	    std::vector<double> CalculateError(geometry_msgs::Pose rbf1, geometry_msgs::Pose rbf2, Eigen::Vector3d rbf_enc);
 	};
 
 

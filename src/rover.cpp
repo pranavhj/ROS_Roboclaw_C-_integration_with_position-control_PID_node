@@ -203,7 +203,7 @@ void Rover::poseCallback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_me
 
 	double t =ros::Time::now().toSec();
 	if(t- last_FK_call>0.01){
-		FKVROriginFrame();
+		//FKVROriginFrame();
 		last_FK_call=t;
 	}
 	
@@ -223,7 +223,7 @@ void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_
 	pose_1.mot2_enc_steps=pose_message->mot2_enc_steps;
 	double t =ros::Time::now().toSec();
 	if(t- last_FK_call>0.01){
-		FKVROriginFrame();
+		//FKVROriginFrame();
 		last_FK_call=t;
 	}
 
@@ -1084,8 +1084,6 @@ void Rover::FK(){
 
 void Rover::FKVROriginFrame(){
 
-
-
 	// ros::spinOnce();
 	auto w1_current=float(pose.mot1_enc_steps);
 	auto w2_current=-float(pose_1.mot2_enc_steps);
@@ -1100,14 +1098,12 @@ void Rover::FKVROriginFrame(){
 	w3_current-W_prev(2);
 
 
-	auto X= A*Xn_1 + 
+	auto X= A*Xn_1_odom + 
 			B*W;
 
 	
-
-
-
-	Xn_1=X;
+	// Xn_1=X;
+	Xn_1_odom=X;
 	W_prev<<w1_current,w2_current,w3_current;
 
 	Pk_1 = A*Pk_1*A.transpose() + I3x3*Q*I3x3.transpose();
@@ -1116,18 +1112,18 @@ void Rover::FKVROriginFrame(){
 	// ROS_ERROR_STREAM("PREDICTION...");
 	// ROS_ERROR_STREAM(Pk_1);
 
+	if(both_trackers_working){
+		try{
+			auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
+			kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
+			TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_1");
+	        TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_2");
+		}
 
-	try{
-		auto kf_pose_robot_frame_in_robot_initial_frame=TF_->ConvertVectorToPose({X(0),X(1),X(2)});
-		kf_pose_robot_frame_in_robot_initial_frame.position.z=lastObsPose.position.z;
-		TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_1");
-        TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame,"robot_frame_kf","robot_initial_frame_2");
+		catch(...){
+			ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
+		}
 	}
-
-	catch(...){
-		ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
-	}
-
 
 
 	
@@ -1197,65 +1193,128 @@ void Rover::KalmanFilter(){
 
 	// auto Y=H*(Xn_1)+D;                            //will be from vr controller get robot frame from tf
 
-    for(int i=0;i<2;i++) {
+    //for(int i=0;i<2;i++) 
+    {
         //actual obs
-        geometry_msgs::Pose robot_observed_pose;
+        geometry_msgs::Pose robot_observed_pose_1;
+
+        geometry_msgs::Pose robot_observed_pose_2;
+        bool tracker_1_state=true,tracker_2_state=true;
 
         //do this better
-        robot_observed_pose = TF_->getInFrame(transformListener,
+        robot_observed_pose_1 = TF_->getInFrame(transformListener,
                                               TF::MakeGeometryMsgsPose(0, 0, 0, 0, 0, 0, 1),
-                                              "/robot_frame_" + std::to_string(i+1),
-                                              "/robot_initial_frame_" + std::to_string(i+1));
+                                              "/robot_frame_" + std::to_string(0+1),
+                                              "/robot_initial_frame_" + std::to_string(0+1));
+
+        robot_observed_pose_2 = TF_->getInFrame(transformListener,
+                                              TF::MakeGeometryMsgsPose(0, 0, 0, 0, 0, 0, 1),
+                                              "/robot_frame_" + std::to_string(1+1),
+                                              "/robot_initial_frame_" + std::to_string(1+1));
 
 
-        auto Y = TF_->PosetoEigenVector3d(robot_observed_pose);
-        prev_obs_pose = robot_observed_pose;
+        auto Y1 = TF_->PosetoEigenVector3d(robot_observed_pose_1);
+        auto Y2 = TF_->PosetoEigenVector3d(robot_observed_pose_2);
+        //prev_obs_pose = robot_observed_pose;
 
         // std::cout<<"Y "<<Y<<std::endl<<std::endl;
-        FKVROriginFrame();
-        auto error_estimates=CalculateError();
+
+        FKVROriginFrame();        //Xn_1 update from odom
+        
+        auto error_estimates=CalculateError(robot_observed_pose_1,robot_observed_pose_2,Xn_1_odom);
         //ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " " + std::to_string(error_estimates[2]) );
         if(error_estimates[1]>0.1) {
-
-            if(i==0    && error_estimates[0]>error_estimates[2]) {
+        	both_trackers_working=false;
+            if(error_estimates[0]>error_estimates[2]) {
                 ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
                                     + std::to_string(error_estimates[2]) + "---FAIL");
                 ROS_ERROR_STREAM("Tracker 1 is unavailable  !!!");
-                continue;
+                tracker_1_state=false;
             }
-            if(i==1    && error_estimates[0] < error_estimates[2]) {
+            if( error_estimates[0] < error_estimates[2]) {
                 ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
                                     + std::to_string(error_estimates[2]) + "---FAIL");
                 ROS_ERROR_STREAM("Tracker 2 is unavailable  !!!");
-                continue;
+                tracker_2_state=false;
             }
         }
+        else{
+        	both_trackers_working=true;
+        	Xn_1_odom=Xn_1;
+
+        }
+
 
         ROS_INFO_STREAM(std::to_string(error_estimates[0]) + " " + std::to_string(error_estimates[1]) + " "
                             + std::to_string(error_estimates[2]));
 
 
+
+
+
+
+
+        if(tracker_2_state)
+    	{
+	        auto X = Xn_1 + K * (Y2 - Yest);                                        //is in robot_initial
+
+
+	        // std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
+	        Xn_1 = X;
+	        // Xn_1_odom=Xn_1;
+	        try {
+	            //ROS_INFO_STREAM("------------Publishing without error:"+ std::to_string(i));
+	            auto kf_pose_robot_frame_in_robot_initial_frame = TF_->ConvertVectorToPose({X(0), X(1), X(2)});
+	            kf_pose_robot_frame_in_robot_initial_frame.position.z = 0;
+	            TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame, "robot_frame_kf", "robot_initial_frame_"+std::to_string(1+1));
+	        }
+
+	        catch (...) {
+	            ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
+	        }
+    	}
+
+
+
+
+
+
+
+
+
+
+
         // std::cout<<"Y-Yest "<<Y-Yest<<std::endl<<std::endl<<std::endl;
-
-        ROS_INFO_STREAM("@@@@@@@@@@@@@@@@@@@@@@@@@@@@"+std::to_string(i));
-        auto X = Xn_1 + K * (Y - Yest);                                        //is in robot_initial
-
-
+        if(tracker_1_state)
+        {
+	        auto X = Xn_1 + K * (Y1 - Yest);                                        //is in robot_initial
 
 
-        // std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
-        Xn_1 = X;
+	        // std::cout<<"X "<<X<<std::endl<<std::endl<<std::endl;
+	        Xn_1 = X;
+	        // Xn_1_odom=Xn_1;
+	        try {
+	            //ROS_INFO_STREAM("------------Publishing without error:"+ std::to_string(i));
+	            auto kf_pose_robot_frame_in_robot_initial_frame = TF_->ConvertVectorToPose({X(0), X(1), X(2)});
+	            kf_pose_robot_frame_in_robot_initial_frame.position.z = 0;
+	            TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame, "robot_frame_kf", "robot_initial_frame_"+std::to_string(0+1));
+	        }
 
-        try {
-//            ROS_INFO_STREAM("------------Publishing without error:"+ std::to_string(i));
-            auto kf_pose_robot_frame_in_robot_initial_frame = TF_->ConvertVectorToPose({X(0), X(1), X(2)});
-            kf_pose_robot_frame_in_robot_initial_frame.position.z = lastObsPose.position.z;
-            TF_->publishFrame(kf_pose_robot_frame_in_robot_initial_frame, "robot_frame_kf", "robot_initial_frame_"+std::to_string(i+1));
-        }
+	        catch (...) {
+	            ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
+	        }
+    	}
 
-        catch (...) {
-            ROS_ERROR_STREAM("cannot push robot_frame_kf to tf2");
-        }
+
+
+
+
+
+
+    	
+
+
+
     }
 
 
@@ -1288,7 +1347,6 @@ void Rover::KalmanFilter(){
 
 
 
-	kf_counter++;
 	
 
 	// ROS_INFO_STREAM("####################################");
@@ -1303,20 +1361,20 @@ void Rover::KalmanFilter(){
 
 
 
-std::vector<double> Rover::CalculateError(){
+std::vector<double> Rover::CalculateError(geometry_msgs::Pose rbf1, geometry_msgs::Pose rbf2, Eigen::Vector3d rb_eig_enc){
 
     //robot_frame_1
     //robot_frame_2
     //robot_enc
-    FKVROriginFrame();
 
-    auto rb_eig_enc = Xn_1;
+
+    // auto rb_eig_enc = Xn_1;
     //Xn_1=//from enc
 
 
-    auto rbf1 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_1" , "/robot_initial_frame_1");
+    // auto rbf1 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_1" , "/robot_initial_frame_1");
 
-    auto rbf2 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_2" , "/robot_initial_frame_2");
+    // auto rbf2 = TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0, 0,0,0,1),  "/robot_frame_2" , "/robot_initial_frame_2");
 
     auto rb_enc = TF_->ConvertVectorToPose({rb_eig_enc(0),rb_eig_enc(1),rb_eig_enc(2)});
 

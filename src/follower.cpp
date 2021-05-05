@@ -40,6 +40,8 @@ float speed_value=0.5;
 
 using namespace std;
 
+std::string frame_to_follow="/robot_frame_kf";
+
 geometry_msgs::Pose getInFrame(tf::TransformListener &transformListener,geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id){
 
     // tf::TransformListener transformListener1;
@@ -143,7 +145,7 @@ geometry_msgs::Pose2D getPose2DInRobot(tf::TransformListener &transformListener)
 
     auto goal_pose_in_origin=MakeGeometryMsgsPose(goal_in_origin_2d.x,goal_in_origin_2d.y,0,geom_quat.x,geom_quat.y,geom_quat.z,geom_quat.w);
 
-    auto goal_pose_in_robot=getInFrame(transformListener,goal_pose_in_origin,"/origin", "/robot_frame");
+    auto goal_pose_in_robot=getInFrame(transformListener,goal_pose_in_origin,"/origin", frame_to_follow);
     // ROS_INFO_STREAM("getinfrmae");
     auto eul=QuaterniontoEuler(goal_pose_in_robot.orientation);
     // ROS_INFO_STREAM("QuaterniontoEuler");
@@ -162,9 +164,11 @@ geometry_msgs::Pose2D getPose2DInRobot(tf::TransformListener &transformListener)
 
 float PIDTheta(float goal_theta_,float euler_angle){
     float error_theta=goal_theta_-euler_angle;
-    // if (abs(error_theta)>300){
-    //     error_theta=(error_theta/abs(error_theta))*(360-abs(error_theta));
-    // }
+    
+
+    if (abs(error_theta)>300){///////////for avoiding reverse rotation when angle jumps from -180 to 180
+        error_theta=-(error_theta/abs(error_theta))*(360-abs(error_theta));
+    }
 
     //////////////////////////////////////////////////////////////////////////
 	//float raw_pid_theta=(kp_theta_*error_theta+ki_theta_*error_theta+kd_theta_*(error_theta-prev_error_theta_))*3.14159/180
@@ -173,11 +177,11 @@ float PIDTheta(float goal_theta_,float euler_angle){
     float raw_pid_theta=(kp_theta_*error_theta+ki_theta_*error_theta+kd_theta_*(error_theta-prev_error_theta_));
     raw_pid_theta=-raw_pid_theta;
     if (raw_pid_theta>0){
-        raw_pid_theta=min(float(0.7),raw_pid_theta);
+        raw_pid_theta=min(float(speed_value*1.25),raw_pid_theta);
 
     }
     else{
-        raw_pid_theta=max(float(-0.7),raw_pid_theta);
+        raw_pid_theta=max(float(-speed_value*1.25),raw_pid_theta);
     }
     // if(abs(error_theta)>300){
     //     raw_pid_theta=-raw_pid_theta/2.5;
@@ -299,10 +303,10 @@ int main(int argc, char **argv)
 
         tf::StampedTransform camera_tf_transform_;
 
-        transformListener.waitForTransform("/origin", "/robot_frame", ros::Time(0),
+        transformListener.waitForTransform("/origin", frame_to_follow, ros::Time(0),
                                                  ros::Duration(3));
 
-        transformListener.lookupTransform("/origin", "/robot_frame", ros::Time(0),
+        transformListener.lookupTransform("/origin", frame_to_follow, ros::Time(0),
                                         camera_tf_transform_);
 
 
@@ -313,7 +317,7 @@ int main(int argc, char **argv)
 
         // ROS_INFO_STREAM("get in frame ");
         auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
-                                            "/robot_frame", "/origin");        
+                                            frame_to_follow, "/origin");        
                                     //Pose of robot in origin
 
 
@@ -369,7 +373,7 @@ int main(int argc, char **argv)
         // cout<<raw_pid_theta<<" "<<goal_in_origin_2d.theta<<" "<<el[2]<<endl; 
         // ROS_INFO_STREAM("error"<<goal_theta_-euler_angles[2],raw_pid_theta);//rpy
         // cout<<"error "<<goal_theta_-euler_angles[2]<<"raw_pid_theta "<<raw_pid_theta<<endl;
-        cout<<"speed_loop:"<<distance<<" err x "<<goal_in_origin_2d.x-robotpose.position.x<<"  x  "<<raw_pid_x<<"  err y "<<goal_in_origin_2d.y-robotpose.position.y<<"  y  "<<raw_pid_y<<"  errtheta  "<<abs(goal_in_origin_2d.theta-el[2])<<"  theta "<<raw_pid_theta<<endl;
+        cout<<"speed_loop:"<<distance<<" err x "<<goal_in_origin_2d.x-robotpose.position.x<<"  x  "<<raw_pid_x<<"  err y "<<goal_in_origin_2d.y-robotpose.position.y<<"  y  "<<raw_pid_y<<"  errtheta  "<<(goal_in_origin_2d_dash.theta-el[2])<<"  theta "<<raw_pid_theta<<endl;
         // cout<<position_wrt_robot[0]<<"       "<<position_wrt_robot[1]<<"   "<<goal_theta_-euler_angles[2]<<endl;
 
         velocity_publisher.publish(cmd_vel_msg);

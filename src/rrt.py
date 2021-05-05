@@ -172,6 +172,10 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
                 if new_y<0:
                     new_y=0
                 point_=Node([new_x,new_y])
+            if time.time()-start_time>2.5:
+                print("Time exceded to solver")
+                flag=0
+                return []
                 
             
 
@@ -220,21 +224,22 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
         
         
     
-    if flag==1:
-        # print("Maze Solved")
-        # print("Iterations= ")
-        maze_solved_time=time.time()
-        # print("counter:",counter)
-        # print("time taken to solve maze: ",maze_solved_time- start_time)
+        if flag==1:
+            # print("Maze Solved")
+            # print("Iterations= ")
+            maze_solved_time=time.time()
+            # print("counter:",counter)
+            # print("time taken to solve maze: ",maze_solved_time- start_time)
 
-    elif time.time()-start_time>4:
-        print("Time exceded to solver")
-        flag=0
-        return []
+        elif time.time()-start_time>2.5:
+            print("Time exceded to solver")
+            flag=0
+            return []
 
-    else:
-        print("Could not solve")
-        
+        else:
+            #print("Could not solve")
+            pass
+            
         
     
     

@@ -1,4 +1,14 @@
 
+
+###################################################################################################
+# Very imp
+# Python Version := 2.7.12
+# Numpy version := 1.16.6
+# Scipy version := 1.2.3
+###################################################################################################
+
+
+
 import rospy
 import sys
 from geometry_msgs.msg           import Pose, PoseStamped, PoseArray

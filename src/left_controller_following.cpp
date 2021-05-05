@@ -25,6 +25,12 @@
 #include <typeinfo>
 #include <fstream>
 #include <tf/transform_listener.h>
+#include "geometry_msgs/PoseStamped.h"
+
+
+
+#include "tf_tools.cpp"
+
 
 
 tf2_ros::TransformBroadcaster *odom_broadcaster;
@@ -35,7 +41,14 @@ float kp_x_=(0.6+0.2)*1000,ki_x_=0,kd_x_=150,prev_error_x_=0,total_error_x_=0;
 float kp_theta_=0.025,ki_theta_=0.00000,kd_theta_=0.002,prev_error_theta_=0,total_error_theta_=0;  //kptheta=0.025
 float kp_y_=(0.6+0.2)*1000,ki_y_=0,kd_y_=150,prev_error_y_=0,total_error_y_=0;
 
-float speed_value=0.75;
+float speed_value=0.95;
+std::string frame_to_follow="/robot_frame_kf";
+
+geometry_msgs::PoseStamped obsPose;
+
+TF *TF_;
+
+geometry_msgs::Pose left_controller_pose;
 
 
 using namespace std;
@@ -49,11 +62,6 @@ geometry_msgs::Pose getInFrame(tf::TransformListener &transformListener,geometry
     StampedPose_in.pose = pose;
     //ROS_INFO_STREAM("StampedPose_int (" << StampedPose_in.pose.position.x <<","<< StampedPose_in.pose.position.y << "," << StampedPose_in.pose.position.z<<")");
     transformListener.transformPose(op_frame_id,StampedPose_in,StampedPose_out);
-
-
-    // cout<<"ROBOT IN TRACKER "<<endl;
-    // ROS_INFO_STREAM(StampedPose_out);
-    
 
     return StampedPose_out.pose;
     
@@ -96,17 +104,24 @@ float wrapto360(double theta){
 }
 
 
-void GoalPoseCallback(const geometry_msgs::Pose2D::ConstPtr& pose){
+void ObsPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
  
-
- goal_in_origin_2d=*pose;
-
+obsPose=*pose;
 
 
- goal_in_origin_2d_dash=goal_in_origin_2d;
- goal_in_origin_2d_dash.theta+=180;
 
- goal_in_origin_2d_dash.theta=wrapto360(goal_in_origin_2d_dash.theta);
+// obsPose.pose.orientation=left_controller_pose.orientation;
+
+auto eul = TF_->QuaterniontoEuler(obsPose.pose);    //in rad
+
+eul[2]=eul[2]+3.14159/2;
+
+auto quat=TF_->EulerToQuaternion(eul[0],eul[1],eul[2]);
+
+obsPose.pose.orientation=quat;
+
+
+
 
 }
 
@@ -129,98 +144,8 @@ vector<float> QuaterniontoEuler(geometry_msgs::Quaternion odom_){
 }
 
 
-geometry_msgs::Pose2D getPose2DInRobot(tf::TransformListener &transformListener){
-    
-    tf2::Quaternion myQuaternion;
-    myQuaternion.setRPY( 0, 0, goal_in_origin_2d.theta );  // Create this quaternion from roll/pitch/yaw (in radians)
-    myQuaternion.normalize();
-    // ROS_INFO_STREAM("normalize");
-    geometry_msgs::Quaternion geom_quat = tf2::toMsg(myQuaternion);
-
-    // ROS_INFO_STREAM("tomsg");
 
 
-
-    auto goal_pose_in_origin=MakeGeometryMsgsPose(goal_in_origin_2d.x,goal_in_origin_2d.y,0,geom_quat.x,geom_quat.y,geom_quat.z,geom_quat.w);
-
-    auto goal_pose_in_robot=getInFrame(transformListener,goal_pose_in_origin,"/origin", "/robot_frame");
-    // ROS_INFO_STREAM("getinfrmae");
-    auto eul=QuaterniontoEuler(goal_pose_in_robot.orientation);
-    // ROS_INFO_STREAM("QuaterniontoEuler");
-
-
-    // ROS_INFO_STREAM(goal_pose_in_robot.position);
-    // cout<<eul[0]<<" "<<eul[1]<<" "<<eul[2]<<endl;
-    return MakeGeometryMsgsPose2D(goal_pose_in_robot.position.x,goal_pose_in_robot.position.y,eul[2]);
-    
-}
-
-
-
-
-
-
-float PIDTheta(float goal_theta_,float euler_angle){
-    float error_theta=goal_theta_-euler_angle;
-    // if (abs(error_theta)>300){
-    //     error_theta=(error_theta/abs(error_theta))*(360-abs(error_theta));
-    // }
-
-    //////////////////////////////////////////////////////////////////////////
-	//float raw_pid_theta=(kp_theta_*error_theta+ki_theta_*error_theta+kd_theta_*(error_theta-prev_error_theta_))*3.14159/180
-    /////////////////////////////////////////////////////////////
-
-    float raw_pid_theta=(kp_theta_*error_theta+ki_theta_*error_theta+kd_theta_*(error_theta-prev_error_theta_));
-    raw_pid_theta=-raw_pid_theta;
-    if (raw_pid_theta>0){
-        raw_pid_theta=min(float(0.7),raw_pid_theta);
-
-    }
-    else{
-        raw_pid_theta=max(float(-0.7),raw_pid_theta);
-    }
-    // if(abs(error_theta)>300){
-    //     raw_pid_theta=-raw_pid_theta/2.5;
-        
-    // }
-    total_error_theta_=total_error_theta_+error_theta;
-    prev_error_theta_=error_theta;
-    return raw_pid_theta;
-}
-
-
-float PIDX(float goal_x){
-    float error_x=goal_x;//-odom_.position.x;
-
-    float raw_pid_x=kp_x_*error_x+ki_x_*error_x+kd_x_*(error_x-prev_error_x_);
-    raw_pid_x=raw_pid_x;
-    if (raw_pid_x>0){
-        raw_pid_x=min(float(speed_value*1000),raw_pid_x);
-
-    }
-    else{
-        raw_pid_x=max(float(-speed_value*1000),raw_pid_x);
-    }
-    
-    return raw_pid_x;
-}
-
-
-float PIDY(float goal_y){
-    float error_y=goal_y;//-odom_.position.y;
-
-    float raw_pid_y=kp_y_*error_y+ki_y_*error_y+kd_y_*(error_y-prev_error_y_);
-    raw_pid_y=raw_pid_y;
-    if (raw_pid_y>0){
-        raw_pid_y=min(float(speed_value*1000),raw_pid_y);
-
-    }
-    else{
-        raw_pid_y=max(float(-speed_value*1000),raw_pid_y);
-    }
-    
-    return raw_pid_y;
-}
 
 
 vector<double> Interpolator(double x, double y){
@@ -266,6 +191,110 @@ double EulerDistance(geometry_msgs::Pose2D p1, geometry_msgs::Pose2D p2){
 	return double(sqrt(pow((p2.x - p1.x),2) + pow((p2.y - p1.y),2)));
 }
 
+double EulerDistance(geometry_msgs::Pose p1, geometry_msgs::Pose p2){
+    return double(sqrt(pow((p2.position.x - p1.position.x),2) + pow((p2.position.y - p1.position.y),2) + pow((p2.position.z - p1.position.z),2)));
+}
+
+void lc_following(tf::TransformListener &transformListener,geometry_msgs::Pose2D &prev_lc_pose, ros::Publisher &lc_pose2d_publisher){
+    auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
+                                            frame_to_follow, "/origin");        
+                                    //Pose of robot in origin
+
+
+
+
+    auto left_controller_pose1=getInFrame(transformListener,MakeGeometryMsgsPose(1.5,0,0, 0,0,0,1),
+                                        "/left_controller", "/origin");    //get one meter ahead point for lc
+
+
+    auto lc_euler=QuaterniontoEuler(left_controller_pose1.orientation);
+
+
+    auto lcpose2d=MakeGeometryMsgsPose2D(left_controller_pose1.position.x,left_controller_pose1.position.y,lc_euler[2]);  
+
+    lcpose2d.theta+=180;
+
+    // ROS_INFO_STREAM(lcpose2d);
+
+
+    if(EulerDistance(lcpose2d,prev_lc_pose)>0.2){
+        lc_pose2d_publisher.publish(lcpose2d);
+        prev_lc_pose=lcpose2d;
+    }
+
+    
+    ros::spinOnce();
+    ros::Duration(0.25).sleep();
+
+}
+
+
+
+geometry_msgs::Pose wall_following(tf::TransformListener &transformListener,geometry_msgs::Pose2D &prev_plate_pose, ros::Publisher &plate_pose2d_publisher){
+    auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
+                                            frame_to_follow, "/origin");        
+                                    //Pose of robot in origin
+
+
+
+    left_controller_pose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
+                                        "/left_controller", "/origin");    //get one meter ahead point for lc  
+    ///////used in callback above
+
+
+
+    for(int i=0;i<50;i++){
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    TF_->publishFrame( obsPose.pose,   "obstacle"  ,  "origin");
+    ros::spinOnce();
+    }
+
+
+
+     transformListener.waitForTransform("/origin", "/obstacle", ros::Time(0),
+                                                 ros::Duration(3));
+
+
+
+
+
+    
+
+    auto behind_obstacle=getInFrame(transformListener,MakeGeometryMsgsPose(0,-0.455*1.1+0.12,0,0,0,0,1),
+                                        "/obstacle","/origin");
+
+
+    
+   
+    TF_->publishFrame( behind_obstacle,   "toberobotframe"  ,  "origin");
+    // //cout<<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"<<endl;
+    
+
+    auto plate_euler=QuaterniontoEuler(behind_obstacle.orientation);
+
+
+    auto plate_pose2d=MakeGeometryMsgsPose2D(behind_obstacle.position.x,behind_obstacle.position.y,plate_euler[2]+(90));  
+
+    //plate_pose2d.theta+=180;
+
+    ROS_INFO_STREAM(EulerDistance(plate_pose2d,prev_plate_pose));
+
+
+    if(EulerDistance(plate_pose2d,prev_plate_pose)>0.1){
+        plate_pose2d_publisher.publish(plate_pose2d);
+        prev_plate_pose=plate_pose2d;
+    }
+
+    
+    ros::spinOnce();
+    ros::Duration(0.25).sleep();
+
+}
+
 
 int main(int argc, char **argv)
 {   
@@ -277,13 +306,21 @@ int main(int argc, char **argv)
     // goal_pose_in_origin.orientation.w=1;
     cout<<"Node handle MAIN "<<endl;
 
+
+    TF_=new TF();
+
+    TF_->PublishStaticTransform("plate_frame", "robot_frame_kf",MakeGeometryMsgsPose(0,0.455,0,0,0,0,1));
+
     odom_broadcaster=new tf2_ros::TransformBroadcaster();
     tf::TransformListener transformListener;
 
 
     goal_in_origin_2d_dash.theta+=180;
 
-    // ros::Subscriber pose_subscriber_ = n_.subscribe("/goal_pose", 10000, GoalPoseCallback);
+    left_controller_pose.orientation.w=1;
+    obsPose.pose.orientation.w=1;
+
+    ros::Subscriber ObsPose_subscriber_ = n_.subscribe("/obsPose", 10000, ObsPoseCallback);
     ros::Publisher lc_pose2d_publisher = n_.advertise<geometry_msgs::Pose2D>("/planner_goal",10);
     ros::spinOnce();
 
@@ -294,6 +331,7 @@ int main(int argc, char **argv)
 
 
     geometry_msgs::Pose2D prev_lc_pose;
+    geometry_msgs::Pose2D prev_plate_pose;
 
     
 
@@ -308,12 +346,30 @@ int main(int argc, char **argv)
                                         camera_tf_transform_);
 
 
-        transformListener.waitForTransform("/origin", "/robot_frame", ros::Time(0),
+        transformListener.waitForTransform("/origin", frame_to_follow, ros::Time(0),
                                                  ros::Duration(3));
 
-        transformListener.lookupTransform("/origin", "/robot_frame", ros::Time(0),
+        transformListener.lookupTransform("/origin", frame_to_follow, ros::Time(0),
                                         camera_tf_transform_);
 
+
+        //ROS_INFO_STREAM(obsPose);
+
+       
+        
+
+        if(EulerDistance(obsPose.pose,MakeGeometryMsgsPose(-100,-100,-100,0,0,0,1))<1)
+        {   //means no obstacle
+                ROS_INFO_STREAM("lc_following"+ to_string(EulerDistance(obsPose.pose,MakeGeometryMsgsPose(-100,-100,-100,0,0,0,1))));
+                lc_following(transformListener,prev_lc_pose,lc_pose2d_publisher);
+            }
+
+        else
+            {
+                ROS_INFO_STREAM("wall_following"+to_string(obsPose.pose.position.x)+" "+to_string(obsPose.pose.position.y)+" "+to_string(obsPose.pose.position.z)+" ");
+                wall_following(transformListener,prev_plate_pose,lc_pose2d_publisher);
+
+        }
 
 
 
@@ -321,35 +377,7 @@ int main(int argc, char **argv)
         // auto goal2dinRobot=getPose2DInRobot(transformListener);         /// point in pose2d where we want to be angle in 0 360
 
         // ROS_INFO_STREAM("get in frame ");
-        auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
-                                            "/robot_frame", "/origin");        
-                                    //Pose of robot in origin
-
-
-
-
-        auto left_controller_pose=getInFrame(transformListener,MakeGeometryMsgsPose(1,0,0, 0,0,0,1),
-                                            "/left_controller", "/origin");
-
-
-        auto lc_euler=QuaterniontoEuler(left_controller_pose.orientation);
-
-
-        auto lcpose2d=MakeGeometryMsgsPose2D(left_controller_pose.position.x,left_controller_pose.position.y,lc_euler[2]);  
-
-        lcpose2d.theta+=180;
-
-        ROS_INFO_STREAM(lcpose2d);
-
-
-        if(EulerDistance(lcpose2d,prev_lc_pose)>0.2){
-            lc_pose2d_publisher.publish(lcpose2d);
-            prev_lc_pose=lcpose2d;
-        }
-
         
-        ros::spinOnce();
-        ros::Duration(1.0).sleep();
 
 
     }

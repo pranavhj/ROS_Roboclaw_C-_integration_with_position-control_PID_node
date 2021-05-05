@@ -33,13 +33,15 @@ class Planner():
 
         self.rc_pose=None
 
-        self.robot_radius=400
+        self.head_pose=None
+
+        self.robot_radius=350
 
         self.threshold=10
 
 
-        self.saftey_distance_for_controller=400    #is radius of obstacle
-        self.block_dimensions=[3200,3200]
+        self.saftey_distance_for_controller=350    #is radius of obstacle
+        self.block_dimensions=[2800,2800]
         self.Maze_eqns=[(000,000,self.saftey_distance_for_controller)]  # x y r of obstacle
         self.Maze=MazeMaker(10,[self.block_dimensions[0],self.block_dimensions[0]],self.Maze_eqns)
 
@@ -65,6 +67,7 @@ class Planner():
         self.lc_pose_subcriber=rospy.Subscriber("/leftControllerPose", PoseStamped, self.LCPosecallback)
         self.rc_pose_subscriber=rospy.Subscriber("/rightControllerPose", PoseStamped, self.RCPosecallback)
         self.robot_pose_subscriber=rospy.Subscriber("/robot_pose", Pose, self.RobotPosecallback)
+        self.headset_pose_subscriber=rospy.Subscriber("/headPose", PoseStamped, self.HeadPosecallback)
 
 
         self.PlannerGoalSubscriber=rospy.Subscriber("/planner_goal", Pose2D, self.PlannerGoalCallback)
@@ -96,50 +99,7 @@ class Planner():
         
        
 
-    def rot2quat(self,R):
-        """ROT2QUAT - Transform Rotation matrix into normalized quaternion.
-        
-        Usage: q = rot2quat(R)
-        
-        Input:
-        R - 3-by-3 Rotation matrix
-        
-        Output:
-        q - 4-by-1 quaternion, with form [w x y z], where w is the scalar term.
-        """
-        # By taking certain sums and differences of the elements
-        # of R we can obtain all products of pairs a_i a_j with
-        # i not equal to j. We then get the squares a_i^2 from
-        # the diagonal of R.
-        a2_a3 = (R[0,1] + R[1,0]) / 4
-        a1_a4 = (R[1,0] - R[0,1]) / 4
-        a1_a3 = (R[0,2] - R[2,0]) / 4
-        a2_a4 = (R[0,2] + R[2,0]) / 4
-        a3_a4 = (R[1,2] + R[2,1]) / 4
-        a1_a2 = (R[2,1] - R[1,2]) / 4
-      
-        D = np.array([[+1, +1, +1, +1],
-                   [+1, +1, -1, -1],
-                   [+1, -1, +1, -1],
-                   [+1, -1, -1, +1]]) * 0.25
-                   
-        aa = np.dot(D, np.r_[np.sqrt(np.sum(R**2) / 3), np.diag(R)])
-      
-        # form 4 x 4 outer product a \otimes a:
-        a_a = np.array([[aa[0], a1_a2, a1_a3, a1_a4],
-                     [a1_a2, aa[1], a2_a3, a2_a4],
-                     [a1_a3, a2_a3, aa[2], a3_a4],
-                     [a1_a4, a2_a4, a3_a4, aa[3]]])
-        
-        # use rank-1 approximation to recover a, up to sign.
-        U, S, V = np.linalg.svd(a_a)
-        q = U[:, 0] 
-        # q = _n.dot(_math.sqrt(S[0]), U[:, 0]) # Use this if you want unnormalized quaternions 
-        
-        return q
-
-
-
+   
 
 
     def LCPosecallback(self,message):
@@ -157,10 +117,16 @@ class Planner():
         temp=message.pose
         self.rc_pose=[(temp.position.x,temp.position.y,temp.position.z),(temp.orientation.x,temp.orientation.y,temp.orientation.z,temp.orientation.w)]
 
+
+    def HeadPosecallback(self,message):
+    
+        temp=message.pose
+        self.head_pose=[(temp.position.x,temp.position.y,temp.position.z),(temp.orientation.x,temp.orientation.y,temp.orientation.z,temp.orientation.w)]
+
     def RobotPosecallback(self,message):
     
         temp=message
-        self.robot_pose=[(temp.position.x,temp.position.y,temp.position.z),(temp.orientation.x,temp.orientation.y,temp.orientation.z,temp.orientation.w)]
+        # self.robot_pose=[(temp.position.x,temp.position.y,temp.position.z),(temp.orientation.x,temp.orientation.y,temp.orientation.z,temp.orientation.w)]
 
 
     def trackerPosecallback(self,message):
@@ -249,6 +215,49 @@ class Planner():
                                 
         return rot_matrix
 
+    def rot2quat(self,R):
+        """ROT2QUAT - Transform Rotation matrix into normalized quaternion.
+
+        Usage: q = rot2quat(R)
+
+        Input:
+        R - 3-by-3 Rotation matrix
+
+        Output:
+        q - 4-by-1 quaternion, with form [w x y z], where w is the scalar term.
+        """
+        # By taking certain sums and differences of the elements
+        # of R we can obtain all products of pairs a_i a_j with
+        # i not equal to j. We then get the squares a_i^2 from
+        # the diagonal of R.
+        a2_a3 = (R[0,1] + R[1,0]) / 4
+        a1_a4 = (R[1,0] - R[0,1]) / 4
+        a1_a3 = (R[0,2] - R[2,0]) / 4
+        a2_a4 = (R[0,2] + R[2,0]) / 4
+        a3_a4 = (R[1,2] + R[2,1]) / 4
+        a1_a2 = (R[2,1] - R[1,2]) / 4
+
+        D = np.array([[+1, +1, +1, +1],
+                   [+1, +1, -1, -1],
+                   [+1, -1, +1, -1],
+                   [+1, -1, -1, +1]]) * 0.25
+                   
+        aa = np.dot(D, np.r_[np.sqrt(np.sum(R**2) / 3), np.diag(R)])
+
+        # form 4 x 4 outer product a \otimes a:
+        a_a = np.array([[aa[0], a1_a2, a1_a3, a1_a4],
+                     [a1_a2, aa[1], a2_a3, a2_a4],
+                     [a1_a3, a2_a3, aa[2], a3_a4],
+                     [a1_a4, a2_a4, a3_a4, aa[3]]])
+
+        # use rank-1 approximation to recover a, up to sign.
+        U, S, V = np.linalg.svd(a_a)
+        q = U[:, 0] 
+        # q = _n.dot(_math.sqrt(S[0]), U[:, 0]) # Use this if you want unnormalized quaternions 
+
+        return q
+
+
 
     def quat2rot(self,q):
         """QUAT2ROT - Transform quaternion into rotation matrix
@@ -317,6 +326,17 @@ class Planner():
         return [yaw*180/3.142, pitch*180/3.142, roll*180/3.142]
 
 
+    def euler_to_quaternion(self, yaw, pitch, roll):
+
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        return [qx, qy, qz, qw]
+
+
+
     def UpdatePosesThread(self,threadName,delay):
         import tf
         print("Started Thread")
@@ -328,8 +348,8 @@ class Planner():
         while not rospy.is_shutdown():
             try:
                 now=rospy.Time.now()
-                listener.waitForTransform("/origin","/robot_frame", now, rospy.Duration(0.5))
-                (trans,rot) = listener.lookupTransform('/origin','/robot_frame', now)
+                listener.waitForTransform("/origin","/robot_frame_kf", now, rospy.Duration(0.5))
+                (trans,rot) = listener.lookupTransform('/origin','/robot_frame_kf', now)
                 # print(trans,rot)
                 self.robot_pose=(trans,rot)
 
@@ -366,16 +386,6 @@ class Planner():
 
 
         print("THREAD ENDED")
-
-
-    def euler_to_quaternion(self, yaw, pitch, roll):
-
-        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
-        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
-        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-
-        return [qx, qy, qz, qw]
 
 
     
@@ -580,14 +590,21 @@ class Planner():
             
             robot_pose_map=self.ConvertPoseToMapCoordinates(self.robot_pose)
 
+            goal_pose_map=self.ConvertPoseToMapCoordinates(self.goal_pose)
 
+            lc_pose_map = self.ConvertPoseToMapCoordinates(self.lc_pose)
+
+            head_pose_map=self.ConvertPoseToMapCoordinates(self.head_pose)
 
 
             # print("Drawing from Pose_list ", len(self.pose_list)," current_index:",self.current_index)
             # print("mz shape is ",Maze.shape)
-            cv2.line(self.Maze,(0,0)  ,(100,0) ,(0,0,255),10)
-
+            cv2.line(self.Maze,(0,0)  ,(100,0) ,(0,0,255),10)                 ########origin axes
             cv2.line(self.Maze,(0,0)  ,(0,100) ,(255,0,0),10)
+
+
+            cv2.circle(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold)),int(self.robot_radius/self.threshold),(0,255,0),-1)
+            cv2.circle(self.Maze,(int(goal_pose_map[0]/self.threshold),int(goal_pose_map[1]/self.threshold)),int(self.robot_radius/self.threshold/3),(0,0,255),-1)
 
 
             origin_O=[(0,0,0),(0,0,0,1)]
@@ -599,6 +616,13 @@ class Planner():
             convX=self.ConvertPoseToMapCoordinates(origin_X)
             convY=self.ConvertPoseToMapCoordinates(origin_Y)
 
+            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convX[0]/self.threshold),int(convX[1]/self.threshold) ) ,(0,0,255),10)
+            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convY[0]/self.threshold),int(convY[1]/self.threshold) ) ,(255,0,0),10)
+
+
+
+
+
             eul=self.quaternion_to_euler(self.robot_pose[1][0],self.robot_pose[1][1],self.robot_pose[1][2],self.robot_pose[1][3])
             # print(eul)
             theta=eul[0]*3.14159/180.0
@@ -609,19 +633,47 @@ class Planner():
             headingXx=int(robot_pose_map[0] + 1000*np.sin(theta))
             headingXy=int(robot_pose_map[1] - 1000*np.cos(theta))
 
-            # print(robot_pose_map, headingXx,headingXy,headingYx,headingYy,theta)
-
-            cv2.circle(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold)),int(self.robot_radius/self.threshold),(0,255,0),-1)
-
-            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convX[0]/self.threshold),int(convX[1]/self.threshold) ) ,(0,0,255),10)
-
-            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convY[0]/self.threshold),int(convY[1]/self.threshold) ) ,(255,0,0),10)
-
-
-
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingXx/self.threshold),int(headingXy/self.threshold) ) ,(0,0,255),10)
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingYx/self.threshold),int(headingYy/self.threshold) ) ,(255,0,0),10)
 
+
+            eul_lc=self.quaternion_to_euler(self.lc_pose[1][0],self.lc_pose[1][1],self.lc_pose[1][2],self.lc_pose[1][3])
+            # print(eul)
+            theta_lc=eul_lc[0]*3.14159/180.0
+            headingYx_lc=int(lc_pose_map[0] - 1000*np.cos(theta_lc))
+            headingYy_lc=int(lc_pose_map[1] - 1000*np.sin(theta_lc))
+
+
+            headingXx_lc=int(lc_pose_map[0] + 1000*np.sin(theta_lc))
+            headingXy_lc=int(lc_pose_map[1] - 1000*np.cos(theta_lc))
+
+            cv2.line(self.Maze,(int(lc_pose_map[0]/self.threshold),int(lc_pose_map[1]/self.threshold))  ,(int(headingXx_lc/self.threshold),int(headingXy_lc/self.threshold) ) ,(0,0,255),10)
+            cv2.line(self.Maze,(int(lc_pose_map[0]/self.threshold),int(lc_pose_map[1]/self.threshold))  ,(int(headingYx_lc/self.threshold),int(headingYy_lc/self.threshold) ) ,(255,0,0),10)
+
+
+
+
+
+
+
+            eul_head=self.quaternion_to_euler(self.head_pose[1][0],self.head_pose[1][1],self.head_pose[1][2],self.head_pose[1][3])
+            # print(eul)
+            theta_head=eul_head[0]*3.14159/180.0
+            headingYx_head=int(head_pose_map[0] - 1000*np.cos(theta_head))
+            headingYy_head=int(head_pose_map[1] - 1000*np.sin(theta_head))
+
+
+            headingXx_head=int(head_pose_map[0] + 1000*np.sin(theta_head))
+            headingXy_head=int(head_pose_map[1] - 1000*np.cos(theta_head))
+
+            cv2.line(self.Maze,(int(head_pose_map[0]/self.threshold),int(head_pose_map[1]/self.threshold))  ,(int(headingXx_head/self.threshold),int(headingXy_head/self.threshold) ) ,(0,0,255),10)
+            cv2.line(self.Maze,(int(head_pose_map[0]/self.threshold),int(head_pose_map[1]/self.threshold))  ,(int(headingYx_head/self.threshold),int(headingYy_head/self.threshold) ) ,(255,0,0),10)
+
+
+
+
+
+            
             
 
 
@@ -651,16 +703,24 @@ class Planner():
         print("Drawing THREAD ENDED")
 
 
+    def form_obstacle_space(self,lc_pm,rc_pm,h_pm):
+
+
+        return h_pm
+
+
     def main(self):
         
 
 
-        # thread.start_new_thread(self.UpdatePosesThread,("thread1",0) )
+        thread.start_new_thread(self.UpdatePosesThread,("thread1",0) )
         self.current_index=0
         
         no_robot_pose_printed=False
         no_lc_pose_printed=False
         no_rc_pose_printed=False
+        no_head_pose_printed=False
+        prev_theta=0
 
         while True:
             pass
@@ -694,6 +754,15 @@ class Planner():
 
 
 
+            if self.head_pose is None:
+                if no_head_pose_printed==False:
+                    print("Not getting head pose")
+                    no_head_pose_printed=True
+                rospy.sleep(0.02)
+                self.head_pose=([0,0,0],[0,0,0,1])
+
+
+
             if self.goal_pose is None:
                 self.goal_pose=robot_pose  #########so that robot does not go away running
 
@@ -710,12 +779,16 @@ class Planner():
 
             left_controller_pose_map=self.ConvertPoseToMapCoordinates(self.lc_pose)
             right_controller_pose_map=self.ConvertPoseToMapCoordinates(self.rc_pose)
+            head_pose_map=self.ConvertPoseToMapCoordinates(self.head_pose)
 
             goal_pose_map=self.ConvertPoseToMapCoordinates(self.goal_pose)
 
-            
+            obs_map=self.Maze_eqns[0][0],self.Maze_eqns[0][1]
 
-            self.Maze_eqns=[(left_controller_pose_map[0],left_controller_pose_map[1],self.saftey_distance_for_controller)]
+            self.Maze_eqns=self.form_obstacle_space([(left_controller_pose_map[0],left_controller_pose_map[1],self.saftey_distance_for_controller)],
+                                                    [(right_controller_pose_map[0],right_controller_pose_map[1],self.saftey_distance_for_controller)],
+                                                    [(head_pose_map[0],head_pose_map[1],self.saftey_distance_for_controller)],
+                                                    )
             
 
 
@@ -731,14 +804,15 @@ class Planner():
             #  Publish current robot pose to robot so that it stopos while remapping in progress
             #  maybe only give if obstruction far ahead
 
-            if len(self.pose_list)==0   or   self.detectGoalchange()    or    self.NormalDistance(robot_pose_map,self.current_index)>self.robot_radius:
+            if len(self.pose_list)==0   or   self.detectGoalchange()    or    self.NormalDistance(robot_pose_map,self.current_index)>self.robot_radius+100:
                 print("############  remapping   ##########")
                 rospy.sleep(0.2)
                 goal_pose_map=self.ConvertPoseToMapCoordinates(self.goal_pose)
                 print("########## NEW GOAL IS #######",goal_pose_map)
                 print("Finding Path from ",[robot_pose_map[0],robot_pose_map[1]], " to this ",[goal_pose_map[0],goal_pose_map[1]], "eul is ",self.EulerDistance(goal_pose_map,left_controller_pose_map)) 
-                print("LC is at ",left_controller_pose_map)
-                if self.EulerDistance(goal_pose_map,left_controller_pose_map)>self.robot_radius+self.Maze_eqns[0][2]:
+                print("LC is at ",obs_map)
+                                            ######### if more obs add more than left_controller_pose_map
+                if self.EulerDistance(goal_pose_map,obs_map)>self.robot_radius+self.Maze_eqns[0][2]:
                     self.pose_list=RRT(self.Maze,self.Maze_eqns,[robot_pose_map[0],robot_pose_map[1]],[goal_pose_map[0],goal_pose_map[1]],800*2,800*2,10,self.block_dimensions,400)
                     print("New POSE lIST is ",self.pose_list)
                     if self.pose_list is None:
@@ -789,14 +863,16 @@ class Planner():
 
             # ###################print("Distance away from current_index ",self.EulerDistance(robot_pose_map,self.pose_list[self.current_index]))
 
+
+            ################Checking if near goal index
             if self.EulerDistance(robot_pose_map,self.pose_list[self.current_index])<100 and self.current_index!=len(self.pose_list)-1:
                 self.current_index+=1
                 print("Current current_index is ",self.current_index)
 
 
 
-            obs_map=self.Maze_eqns[0][0],self.Maze_eqns[0][1]
-            # checking if far away from obs
+            
+            # checking if far away from obs. if not far keep same posn
             if(self.EulerDistance(robot_pose_map, obs_map) > (self.robot_radius/2) + (self.saftey_distance_for_controller/2) ):
                 # Publish(self.pose_list[self.current_index])
                 # print("Publishing this ",self.ConvertMapCoordinatesToPose(self.pose_list[self.current_index]))
@@ -830,7 +906,12 @@ class Planner():
                 
 
                 gp.theta=theta+90
-                self.goal_pose_publisher.publish(gp)
+
+                if len(self.pose_list)==0:
+                    print("empty pose_list")
+                else:
+
+                    self.goal_pose_publisher.publish(gp)
                 
 
 

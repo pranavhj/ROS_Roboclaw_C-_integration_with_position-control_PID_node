@@ -65,7 +65,7 @@ public:
 
 
 
-	void publishFrame(geometry_msgs::Pose pose,string frame_id, std::string parent_frame_id){
+	void publishFrame(geometry_msgs::Pose pose,  string frame_id, std::string parent_frame_id){
 
 
 		geometry_msgs::PoseStamped poseStamped;

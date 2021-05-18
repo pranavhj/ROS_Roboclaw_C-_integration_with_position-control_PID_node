@@ -39,7 +39,7 @@ class Rover{
 
 	private:
 
-        // Coefficients of Kalman Filter
+        
 		float Kp1=1.5,  ki1=0.000000,  kd1=1,prev_e1=0,max_speed=1500,total_error_1=0;
 		float Kp2=1.5,  ki2=0.000000, kd2=1,prev_e2=0,max_speed_2=1500,total_error_2=0;
 		float Kp3=1.5,  ki3=0.000000,  kd3=1,prev_e3=0,max_speed_3=1500,total_error_3=0;
@@ -52,7 +52,7 @@ class Rover{
 
 		
 		float targets[3];
-		float interpolation_speed=50;
+		float interpolation_speed=250;
 		float prev_speed=0,prev_speed_1=0,prev_speed_2=0;
 		float prev_x=0,prev_y=0,prev_theta=0;
 		geometry_msgs::Pose2D prevState;
@@ -77,6 +77,8 @@ class Rover{
 		geometry_msgs::Twist cmd_vel;
 
 		Remote *remote;
+
+        // Coefficients of Kalman Filter
 
 		float w1_prev=0;
 		float w2_prev=0;

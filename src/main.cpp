@@ -58,13 +58,19 @@ while(ros::ok()){
 		//rover->ExecuteCMDVELNoInterpolation();
 
 		if (!cmd_vel){
-			rover->KalmanFilter();
-			rover->ExecuteIKOnlySpeed();
+			rover->KalmanFilter();          /// This function combines readings from robot odometry and both trackers to get optimal pose of robot
+
+
+			//rover->ExecuteIKOnlySpeed();               /// This is a function that i tried that tries to remove the imperfect initial motion towards goal which did not give good results
 		}
 		else{
 			rover->KalmanFilter();
-			// rover->ExecuteCMDVELNoInterpolation();
-			// rover->ExecuteCMDVELNoInterpolation();
+
+
+			// rover->ExecuteCMDVELNoInterpolation(); //  This is a function to make robot move without interpolating the speeds to final speeds for each wheel
+			// rover->ExecuteCMDVELNoInterpolation();  /// this function puts large jerk on motors and wheels due to high changes in accelaration
+			
+
 			rover->ExecuteCMDVEL();
 
 		}
@@ -91,36 +97,7 @@ while(ros::ok()){
 	ros::spinOnce();
 	}
 }
-/*
 
-
-//cout<<position.position_1<<"    "<<position.position_2<<"  "<<position.position_3<<endl;
-while(ros::ok())
-{//cout<<"Start"<<endl;
-PIDcontroller(position.position_1,position.position_2,position.position_3);
-//cout<<"End"<<endl;
-
-ForwardKinematics();
-
-
-
-
-
-roboclaw::RoboclawMotorVelocity vel_msg;
-vel_msg.index=0;
-vel_msg.mot1_vel_sps=0;
-vel_msg.mot2_vel_sps=0;                                               //To stop the motor when pid successful
-velocity_publisher.publish(vel_msg);
-
-
-roboclaw::RoboclawMotorVelocity vel_msg_1;
-vel_msg_1.index=0;							//To stop the motor when pid successful
-vel_msg_1.mot2_vel_sps=0;
-velocity_publisher_1.publish(vel_msg_1);
-
-
-ros::spinOnce();}*/
-//cout<<pose.mot1_enc_steps<<endl;
 
 
 

@@ -564,7 +564,7 @@ void Rover::ExecuteIKOnlySpeed(){
 
 
 
-geometry_msgs::Pose Rover::GetEncoderPosnsFromTF(){
+geometry_msgs::Pose Rover::GetEncoderPosnsFromTF(){          /////To convert positions from VR into corresponding to be encoder position for the robot to be there
 	auto robot_in_robot_intial=TF_->getInFrame(transformListener,TF::MakeGeometryMsgsPose(0,0,0,0,0,0,1), "robot_frame_1", "robot_initial_frame_1");
 
 	auto eul=TF_->QuaterniontoEuler(robot_in_robot_intial);
@@ -576,7 +576,7 @@ geometry_msgs::Pose Rover::GetEncoderPosnsFromTF(){
 	return wheelPosns;
 }
 
-void Rover::PIDControllerOnlySpeed(float goal,float goal1, float goal2){
+void Rover::PIDControllerOnlySpeed(float goal,float goal1, float goal2){      /////PID Controller for each wheel with only speed loop and no pid loop for precesion so that robot moves in required direction linearly
 	
 	roboclaw::RoboclawMotorVelocity vel_msg_; 
 	roboclaw::RoboclawMotorVelocity vel_msg_1;
@@ -698,7 +698,7 @@ void Rover::PIDControllerOnlySpeed(float goal,float goal1, float goal2){
 	}
 
 
-void Rover::PIDcontroller(float goal, float goal1,float goal2){
+void Rover::PIDcontroller(float goal, float goal1,float goal2){       /////PID Controller for each wheel 
 	IK();
 	roboclaw::RoboclawMotorVelocity vel_msg_; 
 	roboclaw::RoboclawMotorVelocity vel_msg_1;

@@ -40,7 +40,7 @@ class Planner():
         self.threshold=10
 
 
-        self.saftey_distance_for_controller=350    #is radius of obstacle
+        self.saftey_distance_for_controller=400    #is radius of obstacle
         self.block_dimensions=[2800,2800]
         self.Maze_eqns=[(000,000,self.saftey_distance_for_controller)]  # x y r of obstacle
         self.Maze=MazeMaker(10,[self.block_dimensions[0],self.block_dimensions[0]],self.Maze_eqns)
@@ -599,25 +599,25 @@ class Planner():
 
             # print("Drawing from Pose_list ", len(self.pose_list)," current_index:",self.current_index)
             # print("mz shape is ",Maze.shape)
-            cv2.line(self.Maze,(0,0)  ,(100,0) ,(0,0,255),10)                 ########origin axes
-            cv2.line(self.Maze,(0,0)  ,(0,100) ,(255,0,0),10)
+            cv2.line(self.Maze,(0,0)  ,(100//3,0) ,(0,0,255),10)                 ########origin axes
+            cv2.line(self.Maze,(0,0)  ,(0,100//3) ,(255,0,0),10)
 
 
             cv2.circle(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold)),int(self.robot_radius/self.threshold),(0,255,0),-1)
             cv2.circle(self.Maze,(int(goal_pose_map[0]/self.threshold),int(goal_pose_map[1]/self.threshold)),int(self.robot_radius/self.threshold/3),(0,0,255),-1)
 
 
-            origin_O=[(0,0,0),(0,0,0,1)]
-            origin_X=[(1,0,0),(0,0,0,1)]
-            origin_Y=[(0,1,0),(0,0,0,1)]
+            # origin_O=[(0,0,0),(0,0,0,1)]
+            # origin_X=[(1,0,0),(0,0,0,1)]
+            # origin_Y=[(0,1,0),(0,0,0,1)]
 
 
-            convO=self.ConvertPoseToMapCoordinates(origin_O)
-            convX=self.ConvertPoseToMapCoordinates(origin_X)
-            convY=self.ConvertPoseToMapCoordinates(origin_Y)
+            # convO=self.ConvertPoseToMapCoordinates(origin_O)
+            # convX=self.ConvertPoseToMapCoordinates(origin_X)
+            # convY=self.ConvertPoseToMapCoordinates(origin_Y)
 
-            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convX[0]/self.threshold),int(convX[1]/self.threshold) ) ,(0,0,255),10)
-            cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convY[0]/self.threshold),int(convY[1]/self.threshold) ) ,(255,0,0),10)
+            # cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convX[0]/self.threshold),int(convX[1]/self.threshold) ) ,(0,0,255),10)
+            # cv2.line(self.Maze,(int(convO[0]/self.threshold),int(convO[1]/self.threshold))  ,(int(convY[0]/self.threshold),int(convY[1]/self.threshold) ) ,(255,0,0),10)
 
 
 
@@ -626,12 +626,12 @@ class Planner():
             eul=self.quaternion_to_euler(self.robot_pose[1][0],self.robot_pose[1][1],self.robot_pose[1][2],self.robot_pose[1][3])
             # print(eul)
             theta=eul[0]*3.14159/180.0
-            headingYx=int(robot_pose_map[0] - 1000*np.cos(theta))
-            headingYy=int(robot_pose_map[1] - 1000*np.sin(theta))
+            headingYx=int(robot_pose_map[0] - 1000//3*np.cos(theta))
+            headingYy=int(robot_pose_map[1] - 1000//3*np.sin(theta))
 
 
-            headingXx=int(robot_pose_map[0] + 1000*np.sin(theta))
-            headingXy=int(robot_pose_map[1] - 1000*np.cos(theta))
+            headingXx=int(robot_pose_map[0] + 1000//3*np.sin(theta))
+            headingXy=int(robot_pose_map[1] - 1000//3*np.cos(theta))
 
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingXx/self.threshold),int(headingXy/self.threshold) ) ,(0,0,255),10)
             cv2.line(self.Maze,(int(robot_pose_map[0]/self.threshold),int(robot_pose_map[1]/self.threshold))  ,(int(headingYx/self.threshold),int(headingYy/self.threshold) ) ,(255,0,0),10)
@@ -640,12 +640,12 @@ class Planner():
             eul_lc=self.quaternion_to_euler(self.lc_pose[1][0],self.lc_pose[1][1],self.lc_pose[1][2],self.lc_pose[1][3])
             # print(eul)
             theta_lc=eul_lc[0]*3.14159/180.0
-            headingYx_lc=int(lc_pose_map[0] - 1000*np.cos(theta_lc))
-            headingYy_lc=int(lc_pose_map[1] - 1000*np.sin(theta_lc))
+            headingYx_lc=int(lc_pose_map[0] - 1000//3*np.cos(theta_lc))
+            headingYy_lc=int(lc_pose_map[1] - 1000//3*np.sin(theta_lc))
 
 
-            headingXx_lc=int(lc_pose_map[0] + 1000*np.sin(theta_lc))
-            headingXy_lc=int(lc_pose_map[1] - 1000*np.cos(theta_lc))
+            headingXx_lc=int(lc_pose_map[0] + 1000//3*np.sin(theta_lc))
+            headingXy_lc=int(lc_pose_map[1] - 1000//3*np.cos(theta_lc))
 
             cv2.line(self.Maze,(int(lc_pose_map[0]/self.threshold),int(lc_pose_map[1]/self.threshold))  ,(int(headingXx_lc/self.threshold),int(headingXy_lc/self.threshold) ) ,(0,0,255),10)
             cv2.line(self.Maze,(int(lc_pose_map[0]/self.threshold),int(lc_pose_map[1]/self.threshold))  ,(int(headingYx_lc/self.threshold),int(headingYy_lc/self.threshold) ) ,(255,0,0),10)
@@ -659,12 +659,12 @@ class Planner():
             eul_head=self.quaternion_to_euler(self.head_pose[1][0],self.head_pose[1][1],self.head_pose[1][2],self.head_pose[1][3])
             # print(eul)
             theta_head=eul_head[0]*3.14159/180.0
-            headingYx_head=int(head_pose_map[0] - 1000*np.cos(theta_head))
-            headingYy_head=int(head_pose_map[1] - 1000*np.sin(theta_head))
+            headingYx_head=int(head_pose_map[0] - 1000//3*np.cos(theta_head))
+            headingYy_head=int(head_pose_map[1] - 1000//3*np.sin(theta_head))
 
 
-            headingXx_head=int(head_pose_map[0] + 1000*np.sin(theta_head))
-            headingXy_head=int(head_pose_map[1] - 1000*np.cos(theta_head))
+            headingXx_head=int(head_pose_map[0] + 1000//3*np.sin(theta_head))
+            headingXy_head=int(head_pose_map[1] - 1000//3*np.cos(theta_head))
 
             cv2.line(self.Maze,(int(head_pose_map[0]/self.threshold),int(head_pose_map[1]/self.threshold))  ,(int(headingXx_head/self.threshold),int(headingXy_head/self.threshold) ) ,(0,0,255),10)
             cv2.line(self.Maze,(int(head_pose_map[0]/self.threshold),int(head_pose_map[1]/self.threshold))  ,(int(headingYx_head/self.threshold),int(headingYy_head/self.threshold) ) ,(255,0,0),10)

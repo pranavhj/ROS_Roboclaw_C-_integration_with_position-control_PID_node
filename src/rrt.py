@@ -231,7 +231,7 @@ def RRT(Maze,Maze_eqns,start,goal,counter_,delta,threshold,block_dimensions,robo
             # print("counter:",counter)
             # print("time taken to solve maze: ",maze_solved_time- start_time)
 
-        elif time.time()-start_time>2.5:
+        elif time.time()-start_time>4.5:
             print("Time exceded to solver")
             flag=0
             return []

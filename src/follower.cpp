@@ -25,41 +25,25 @@
 #include <typeinfo>
 #include <fstream>
 #include <tf/transform_listener.h>
-
+#include "tf_tools.cpp"
 
 tf2_ros::TransformBroadcaster *odom_broadcaster;
 geometry_msgs::Pose2D goal_in_origin_2d;
 geometry_msgs::Pose2D goal_in_origin_2d_dash;
 
-float kp_x_=(0.6+0.2)*1000,ki_x_=0,kd_x_=150,prev_error_x_=0,total_error_x_=0;
+float kp_x_=(0.6+0.2)*1000/5,ki_x_=0,kd_x_=450,prev_error_x_=0,total_error_x_=0;
 float kp_theta_=0.025,ki_theta_=0.00000,kd_theta_=0.002,prev_error_theta_=0,total_error_theta_=0;  //kptheta=0.025
-float kp_y_=(0.6+0.2)*1000,ki_y_=0,kd_y_=150,prev_error_y_=0,total_error_y_=0;
+float kp_y_=(0.6+0.2)*1000/5,ki_y_=0,kd_y_=450,prev_error_y_=0,total_error_y_=0;
 
-float speed_value=0.5;
+float speed_value=0.75;
+TF *TF_;
 
 
 using namespace std;
 
 std::string frame_to_follow="/robot_frame_kf";
 
-geometry_msgs::Pose getInFrame(tf::TransformListener &transformListener,geometry_msgs::Pose pose,std::string pose_frame_id, std::string op_frame_id){
 
-    // tf::TransformListener transformListener1;
-    geometry_msgs::PoseStamped StampedPose_in,StampedPose_out; 
-    StampedPose_in.header.frame_id = pose_frame_id;
-    
-    StampedPose_in.pose = pose;
-    //ROS_INFO_STREAM("StampedPose_int (" << StampedPose_in.pose.position.x <<","<< StampedPose_in.pose.position.y << "," << StampedPose_in.pose.position.z<<")");
-    transformListener.transformPose(op_frame_id,StampedPose_in,StampedPose_out);
-
-
-    // cout<<"ROBOT IN TRACKER "<<endl;
-    // ROS_INFO_STREAM(StampedPose_out);
-    
-
-    return StampedPose_out.pose;
-    
-}
 
 
 geometry_msgs::Pose MakeGeometryMsgsPose(double px,double py,double pz,double rx,double ry,double rz,double rw){
@@ -112,23 +96,7 @@ void GoalPoseCallback(const geometry_msgs::Pose2D::ConstPtr& pose){
 
 }
 
-vector<float> QuaterniontoEuler(geometry_msgs::Quaternion odom_){
-    vector<float> temp;
-    geometry_msgs::Quaternion orientation=odom_;
-    tf2::Quaternion q(
-    orientation.x,
-    orientation.y,
-    orientation.z,
-    orientation.w);   
-    //ROS_INFO_STREAM(q);
-    tf2::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    temp.push_back(180+(roll*180/3.14159));
-    temp.push_back(180+(pitch*180/3.14159));
-    temp.push_back(180+(yaw*180/3.14159));                 ////////for conversion to 0-360
-    return temp;
-}
+
 
 
 geometry_msgs::Pose2D getPose2DInRobot(tf::TransformListener &transformListener){
@@ -145,15 +113,15 @@ geometry_msgs::Pose2D getPose2DInRobot(tf::TransformListener &transformListener)
 
     auto goal_pose_in_origin=MakeGeometryMsgsPose(goal_in_origin_2d.x,goal_in_origin_2d.y,0,geom_quat.x,geom_quat.y,geom_quat.z,geom_quat.w);
 
-    auto goal_pose_in_robot=getInFrame(transformListener,goal_pose_in_origin,"/origin", frame_to_follow);
+    auto goal_pose_in_robot=TF_->getInFrame(transformListener,goal_pose_in_origin,"/origin", frame_to_follow);
     // ROS_INFO_STREAM("getinfrmae");
-    auto eul=QuaterniontoEuler(goal_pose_in_robot.orientation);
+    auto eul=TF_->QuaterniontoEuler(goal_pose_in_robot);
     // ROS_INFO_STREAM("QuaterniontoEuler");
 
 
     // ROS_INFO_STREAM(goal_pose_in_robot.position);
     // cout<<eul[0]<<" "<<eul[1]<<" "<<eul[2]<<endl;
-    return MakeGeometryMsgsPose2D(goal_pose_in_robot.position.x,goal_pose_in_robot.position.y,eul[2]);
+    return MakeGeometryMsgsPose2D(goal_pose_in_robot.position.x,goal_pose_in_robot.position.y,180+(180/3.14159*eul[2]));
     
 }
 
@@ -253,15 +221,7 @@ vector<double> Interpolator(double x, double y){
          // speed_theta=(max_value*abs(e_current_2)/abs(e_current_1)*e_current_2/abs(e_current_2));
         }
 
-    // else if (abs(e_current_2) >= abs(e_current)   and  abs(e_current_2) >= abs(e_current_1))
-    //     {
-    //      //ROS_INFO_STREAM("3333333");
-    //      //std::cout<<"errors "<<e_current<<" "<<e_current_1<<" "<<e_current_2<<" "<<max_value<<std::endl;
-
-    //      speed_theta=(max_value*e_current_2/abs(e_current_2));
-    //      speed_x=(max_value*abs(e_current)/abs(e_current_2)*e_current/abs(e_current));
-    //      speed_y=(max_value*abs(e_current_1)/abs(e_current_2)*e_current_1/abs(e_current_1));
-    //     }           
+             
 
     return {speed_x,speed_y};
 }
@@ -283,7 +243,7 @@ int main(int argc, char **argv)
 
     odom_broadcaster=new tf2_ros::TransformBroadcaster();
     tf::TransformListener transformListener;
-
+    TF_=new TF();
 
     goal_in_origin_2d_dash.theta+=180;
 
@@ -316,7 +276,7 @@ int main(int argc, char **argv)
         auto goal2dinRobot=getPose2DInRobot(transformListener);         /// point in pose2d where we want to be angle in 0 360
 
         // ROS_INFO_STREAM("get in frame ");
-        auto robotpose=getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
+        auto robotpose=TF_->getInFrame(transformListener,MakeGeometryMsgsPose(0,0,0, 0,0,0,1),
                                             frame_to_follow, "/origin");        
                                     //Pose of robot in origin
 
@@ -329,7 +289,7 @@ int main(int argc, char **argv)
 
 
         // ROS_INFO_STREAM("EL   ");
-        auto el=QuaterniontoEuler(robotpose.orientation);
+        auto el=TF_->QuaterniontoEuler(robotpose);
 
 
         float raw_pid_theta;
@@ -342,7 +302,7 @@ int main(int argc, char **argv)
         if(distance >0.3){
         	speed_loop=true;
         	auto msg_val=Interpolator(goal2dinRobot.x,goal2dinRobot.y);
-            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,el[2]); 
+            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,180+(180/3.14159*el[2])); 
 
             cmd_vel_msg.angular.z=-raw_pid_theta;
 
@@ -353,7 +313,7 @@ int main(int argc, char **argv)
             cmd_vel_msg.linear.y=msg_val[1]*1000.0;            //// because of mm input of cmd_vel
         }
         else{
-            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,el[2]);        
+            raw_pid_theta=PIDTheta(goal_in_origin_2d_dash.theta,180+(180/3.14159*el[2]));        
             cmd_vel_msg.angular.z=-raw_pid_theta;
 
             raw_pid_x=PIDX(goal2dinRobot.x);

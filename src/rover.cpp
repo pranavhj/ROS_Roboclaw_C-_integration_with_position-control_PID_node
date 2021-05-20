@@ -45,7 +45,7 @@ Rover::Rover(ros::NodeHandle *n){
 	// position_subscriber=n->subscribe("/position",100,&Rover::positionCallback,this);     //given by inverse kinema	
 	pose_subscriber_1=n->subscribe("/motor_enc_1",10,&Rover::pose_1Callback,this);
 	inv_kinematics_subscriber=n->subscribe("/inv_kinematics",10,&Rover::IKCallback,this);
-	inv_kinematics_publisher=n->advertise<motor_controller::position>("/position",10);
+	inv_kinematics_publisher=n->advertise<rover::position>("/position",10);
 	cmd_vel_subscriber=n->subscribe("/cmd_vel",1,&Rover::CMDVELCallback,this);
 
 

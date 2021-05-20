@@ -34,7 +34,7 @@ void Rover::IK(){              //takes IK pose and converts to position values
 	w=w*3.14159/180;
     float *targets=matrixCalculation(x,y,w);
 
-    motor_controller::position position;
+    rover::position position;
     position.position_1=int(*(targets));
     position.position_2=int(*(targets+1));
     position.position_3=int(*(targets+2));//angle in deg
@@ -94,7 +94,7 @@ void Rover::pose_1Callback(const roboclaw::RoboclawEncoderSteps::ConstPtr& pose_
 
 }
 
-void Rover::positionCallback(const motor_controller::position::ConstPtr& position_message){
+void Rover::positionCallback(const rover::position::ConstPtr& position_message){
 	position.position_1=position_message->position_1;
 	position.position_2=-position_message->position_2;
 	position.position_3=-position_message->position_3;

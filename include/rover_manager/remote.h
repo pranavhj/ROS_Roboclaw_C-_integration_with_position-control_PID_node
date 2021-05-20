@@ -3,7 +3,7 @@
 #include "ros/ros.h"
 #include "roboclaw/RoboclawMotorVelocity.h"
 #include "roboclaw/RoboclawEncoderSteps.h"
-#include "motor_controller/position.h"
+#include "rover/position.h"
 #include "geometry_msgs/Pose2D.h"
 #include "sensor_msgs/Joy.h"
 #include <sstream>

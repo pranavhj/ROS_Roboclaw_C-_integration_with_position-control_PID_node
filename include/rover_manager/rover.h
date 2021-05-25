@@ -2,7 +2,7 @@
 #include "ros/ros.h"
 #include "roboclaw/RoboclawMotorVelocity.h"
 #include "roboclaw/RoboclawEncoderSteps.h"
-#include "motor_controller/position.h"
+#include "rover/position.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Bool.h"
 #include "geometry_msgs/Pose2D.h"
@@ -68,7 +68,7 @@ class Rover{
 
 		roboclaw::RoboclawEncoderSteps pose;
 		roboclaw::RoboclawEncoderSteps pose_1;
-		motor_controller::position position;
+		rover::position position;
 		float full_speed=2000;
 		geometry_msgs::Pose2D FKPose;
 		ros::NodeHandle n;
@@ -150,7 +150,7 @@ class Rover{
          * @param:
          * @return: None
          **/
-        void positionCallback(const motor_controller::position::ConstPtr& position_message);
+        void positionCallback(const rover::position::ConstPtr& position_message);
 
         /**
          * @brief:

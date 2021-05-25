@@ -167,7 +167,7 @@ void lc_following(tf::TransformListener &transformListener,geometry_msgs::Pose2D
 
 
 
-    auto headset_pose1=TF_->getInFrame(transformListener,MakeGeometryMsgsPose(1.5,0,0, 0,0,0,1),
+    auto headset_pose1=TF_->getInFrame(transformListener,MakeGeometryMsgsPose(1.75,0,0, 0,0,0,1),
                                         "/headset", "/origin");    //get one meter ahead point for lc
 
 

@@ -890,7 +890,7 @@ DonePublisher.publish(DoneString);
 
 
 
-void Rover::ForwardKinematics(){
+void Rover::ForwardKinematics(){        ////Calculates Robot pose wrt where robot started using wheel measure
 	ros::spinOnce();
 	auto w1=float(pose.mot1_enc_steps);
 	auto w2=-float(pose_1.mot2_enc_steps);

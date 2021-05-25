@@ -52,7 +52,7 @@ class Rover{
 
 		
 		float targets[3];
-		float interpolation_speed=250;
+		float interpolation_speed=50;
 		float prev_speed=0,prev_speed_1=0,prev_speed_2=0;
 		float prev_x=0,prev_y=0,prev_theta=0;
 		geometry_msgs::Pose2D prevState;

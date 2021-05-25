@@ -35,7 +35,7 @@ float kp_x_=(0.6+0.2)*1000/5,ki_x_=0,kd_x_=450,prev_error_x_=0,total_error_x_=0;
 float kp_theta_=0.025,ki_theta_=0.00000,kd_theta_=0.002,prev_error_theta_=0,total_error_theta_=0;  //kptheta=0.025
 float kp_y_=(0.6+0.2)*1000/5,ki_y_=0,kd_y_=450,prev_error_y_=0,total_error_y_=0;
 
-float speed_value=0.75;
+float speed_value=0.5;
 TF *TF_;
 
 

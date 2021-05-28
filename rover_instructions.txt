@@ -1,0 +1,118 @@
+Commands to run the robot
+
+There are 3 computers here
+1) VR Computer- Computer that runs unity and connects to the VR setup
+2) RPI- raspberry pi on the robot that communicates with motor-driver and runs the ros master
+3) Linux computer- The computer that has linux installed on it and is connected as a slave to the rpi,and runs all the higher level and higher processing requirement tasks
+
+Instructions-
+1) start the power via the emergency switch before ensuring the power supply is switched on. The power supply has a red led that indicates it is switched on. When
+the emergency siwtch is turned on both the drivers have a led that turns on that indicates it has power. The driver that has 2 motors connected has a low intensity led
+and the one with 1 motor connected has a brighter led but both work the same.
+the drivers are connected to the rpi via a usb connection. dont change the usb connection until absolutely necessary.
+
+2) then start the rpi using a small switch connected on the wire that connects to the rpi (gives power to the rpi directly from the outlet like a adapter using a c-type usb).
+ the rpi too when switched on is indicated by an led on it. One it is started, go to the computer on which unity with the vr setup is running and start the application VNC viewer.
+Make sure the computer is connected to WIFI 0102. then connect to the ip-address in the application.once you double click on the ip-address, it will show a screen displaying the rpi screen.
+if it shows the rpi screen is not available with a black screen ,connect the display hdmi on the rpi to the small screen on the robot. switch off the rpi and try 2) again.keep doing this until you
+get it correct
+
+3) Once you ensure there is power on the drivers and the rpi is started on the vnc viewer, 
+
+The ros master runs on the rpi after this command is run successfully, now if you want to give control commands it is best to do it from another computer which also needs to run ros on the same address
+for this to work all computers in this project need to be connected to WIFI 0102
+on the rpi open a terminal and check the ip address it is connected to using ip-config, it will be of the form 192. ....
+now on the computer running linux, start a terminal, ensure you are in the base directory, run 
+gedit .bashrc
+
+then paste the commands
+****************************************
+****************************************
+****************************************
+
+
+
+Then, start a terminal on the rpi, and run the command 
+
+roslaunch roboclaw roboclaw_m.launch
+
+
+
+4) Ensure that both systems have ros connected by running command rostopic list on the linux computer
+if you see the name of topics which are the same on the rpi, means both systems are connected and we can send commands to the robot using the linux computer
+
+5) now run the whole vr setup as specified in the vr-instructions
+
+6) Check the ip address of the linux computer in the same way as above and note it down.
+go to the computer running the vr, open the script ***************   and change the ip address over ther to the address of the linux computer.
+now we can receive data from the vr computer to the linux computer
+
+while ensuring all the above ip addresses are correctly set and all computers are connected to WIFI 0102
+run these commands on linux computer
+cd catkin_ws/src/rover/src
+python receiveUDP.py
+now if you see many lines priniting on the terminal that means all the setup was successfull
+
+7) Now its time to calibrate the positions of the trackers with respect to the robot. 
+This has to be done everytime the trackers are moved, even by a little. If they are not skip this step
+now run command (ensure you are in the directory catkin_ws/src/rover/src)
+python Calibration.py
+then,
+rotate the robot about its center axis slowly for about 1/2 a rotation, after this is done run press control+c on the terminal running Calibration.py
+you will see that a circle is fitted for both trakcers, if you see that the points are very weird and about 95% dont lie on the circle repeat this process
+once done, press control+c again and close this program, once it is completely closed,run command
+rosrun rover tf_calibration _calibration:=true       //////////This will calculate and save the parameters for calibration
+once all this is done calibration is finished.
+
+Problems encountered- if you get no points on the setup or an error while calculating after running python Calibration.py, it probably means the trackers must have
+switched off. turn them on and try it again. 
+if the trackers aren't turned off, it means the program is not able to receive to poses of the trackers from the Unity computer for some reason, it could probably mean the device indexes arent assigned correctly or the tracker isnt connected to the vive setup. Ensure all the connections related to the tracker are correct and when you move the vr tracker in the real world you can see it moving in unity as well. this should probably fix all problems
+once all this is correct
+
+8)In another terminal run  
+rosrun rover tf_calibration _calibration:=false    //////////this will publish all frames to tf where they will become accessible to any program 
+
+
+9) In another terminal run
+rosrun rover main _free:=false _cmd_vel:=true
+/////this starts the code to move the rover. the parameter free indicates whether the robot wheels will have braking resistance or not. if free is set to true, the robot's wheels will be free to move by hand but still the kalman filter will be activated
+and the robots optimum pose wrt vr_origin_frame. if free is set to false, the robot can be moved by publishing to the /cmd_vel topic and also robot's optimum pose is published as well
+
+
+10) Once this is done to run the robot autonomously run the command 
+python Planner.py
+
+This plans path for the robot to the position published on topic /planner_goal. This will bring up a cv2.imshow window showing the robot in green and the obstacle which is made around the headset in white
+this planner can plan paths dynamically and update them in real time according to the planned path, obstacle location, and deviation from current path
+
+If the goal is very near the obstacle(such that if we have to go to the goal ,it will collide with the obstacle) it will stop where the robot is currenly and wait for the obstacle to move out of the robot's way to the goal. 
+once this happens, it will again give new waypoints to it to reach the goal
+
+
+This does not move the robot but only gives the robot the waypoints it needs to move to
+To close this program click on the cv2 window and press key q
+
+
+11) After this run the command 
+rosrun rover lc_following
+This gives the planner the goal point it needs to plan to. There are two behaviors that this program executes
+1- lc_following - takes the robot 1.75m ahead of the headset and keeps moving it such that this keeps on happenning. it will basically stay near the user and when its time for interaction the behavior will change
+2- wall_following - simulates the wall in the VR world. this is activated when the bat/extension on the arm collides with any of the walls in the VR world. a sphere will appear on the point of collision(this is just a que) and the robot tries to go to the point where the sphere is
+Problems- If the sphere does not appear even after you can see the extension colliding with the walls, there is a problem with unity. This is just fixed by rerunning the unity code using the play button
+Once this is done everything is setup and the robot is ready to move. before that it is helpful to check if everything works perfecly by checking the Planner.py cv2.imshow window, looking through the headset to see the sphere appearing in the correct place when there is a collision with the wall
+checking to see if the imshow window shows a good path.
+
+12) Once everything is verified, its time to move the robot. while doing this always be ready near the emergency switch to turn the robot off if you see any weird behavoir
+
+rosrun rover follower
+
+if you switch off the robot using the switch, you will see a error pop up on the vnc viewer screen. Hence we have to rerun the command on the rpi and hence the ros master is switched off and a new one is started. So all the codes above have to be rerun
+if the trackers did not move, calibration will not be needed.
+then run the commands in the following order in the linux computer
+
+python receiveUDP.py
+rosrun rover tf_publisher _calibration:=false
+rosrun rover main _free:=false _cmd_vel:=true
+python Planner.py
+rosrun rover lc_following
+rosrun rover follower 
